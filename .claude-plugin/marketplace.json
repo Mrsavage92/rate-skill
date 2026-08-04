@@ -1,14 +1,29 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "rate-skill",
-  "owner": { "name": "Adam Savage", "url": "https://github.com/Mrsavage92" },
-  "description": "Marketplace for the /rate skill - cold, independently-delegated 0-100 rating with a structural grader.",
+  "owner": {
+    "name": "Adam Savage"
+  },
+  "description": "Marketplace for /rate, a cold independently delegated 0-100 rating skill with a structural grader.",
   "plugins": [
     {
       "name": "rate",
       "source": "./",
-      "description": "Cold 0-100 rating skill built on one rule: the agent that produced the work does not get to score it.",
+      "description": "Cold 0-100 ratings built on one rule: the agent that produced the work does not get to score it.",
+      "author": {
+        "name": "Adam Savage"
+      },
+      "homepage": "https://github.com/Mrsavage92/rate-skill",
+      "repository": "https://github.com/Mrsavage92/rate-skill",
+      "license": "MIT",
       "category": "development",
-      "tags": ["rating", "review", "code-quality", "evaluation", "self-review"]
+      "tags": [
+        "rating",
+        "review",
+        "code-quality",
+        "evaluation",
+        "self-review"
+      ]
     }
   ]
 }

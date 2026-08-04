@@ -1,0 +1,37 @@
+{
+  "name": "claude-rate-skill",
+  "version": "0.1.2",
+  "description": "One-command installer for the /rate skill in Claude Code.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "rate-skill": "bin/install.js"
+  },
+  "files": [
+    "bin/",
+    "rate/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/test-installer.js",
+    "prepack": "node bin/clean-pycache.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mrsavage92/rate-skill.git"
+  },
+  "homepage": "https://github.com/Mrsavage92/rate-skill#readme",
+  "bugs": {
+    "url": "https://github.com/Mrsavage92/rate-skill/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "agent-skill",
+    "rating",
+    "independent-review"
+  ]
+}
