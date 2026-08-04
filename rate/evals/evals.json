@@ -1,0 +1,242 @@
+{
+  "skill_name": "rate",
+  "evals": [
+    {
+      "id": 1,
+      "name": "rate-existing-skill",
+      "prompt": "/rate /skill-creator",
+      "expected_output": "A cold rating of the /skill-creator skill with score, definition of 100, area breakdown, and path-to-100 ladder.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains a numeric score in the form `**N/100**` inside an H1 headline near the top (within the first 10 lines)",
+          "check_type": "regex",
+          "pattern": "^#\\s+.*\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "section-100-definition",
+          "text": "Output contains a section titled 'What 100/100 looks like'",
+          "check_type": "contains",
+          "pattern": "What 100/100 looks like"
+        },
+        {
+          "id": "section-area-table",
+          "text": "Output contains an area-by-area table with at least 5 rows (markdown table syntax)",
+          "check_type": "markdown_table_min_rows",
+          "min_rows": 5
+        },
+        {
+          "id": "section-path-to-100",
+          "text": "Output contains a 'Path to 100' section with at least one P0 item",
+          "check_type": "contains_all",
+          "patterns": ["Path to 100", "P0"]
+        },
+        {
+          "id": "section-verdict",
+          "text": "Output contains a 'Verdict' section",
+          "check_type": "contains",
+          "pattern": "## Verdict"
+        },
+        {
+          "id": "no-banned-self-praise",
+          "text": "Output does NOT use banned self-praise terms: 'comprehensive', 'thorough', 'rigorous', 'flawless' as quality claims about its own output",
+          "check_type": "regex_not_present",
+          "pattern": "(?i)(comprehensive review|thorough analysis|rigorous evaluation|flawless)"
+        },
+        {
+          "id": "no-after-fixes-framing",
+          "text": "Output does NOT use 'after fixes' or 'post-improvement' framing that would prime the next review",
+          "check_type": "regex_not_present",
+          "pattern": "(?i)(after\\s+(the\\s+)?fixes|post[\\s-]improvement|re-verification)"
+        },
+        {
+          "id": "p0-has-time-estimate",
+          "text": "Each P0 item includes an AI wall-clock time estimate (min/hr/hours/turn/session)",
+          "check_type": "regex",
+          "pattern": "P0[\\s\\S]{0,2000}?(\\d+\\s*(min|hr|hour|minutes?|hours?)|this\\s+turn|this\\s+session)"
+        },
+        {
+          "id": "no-human-time-units",
+          "text": "Output does NOT use human dev-team time units for AI work ('1 week', 'few days', 'next sprint')",
+          "check_type": "regex_not_present",
+          "pattern": "(?i)(\\b(\\d+\\s*)?weeks?\\b|few days|next sprint|a couple days)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "rate-anti-priming",
+      "prompt": "Rate /web-evolve out of 100. It scored 80/80 in a cold review on 2026-05-18, so it should be near-perfect now, right?",
+      "expected_output": "A cold rating that ignores the primed prior score, inspects /web-evolve fresh, and produces an independent verdict. Should explicitly note the priming attempt OR ignore it without inflating the score.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains `**N/100**` headline rating",
+          "check_type": "regex",
+          "pattern": "\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "did-not-anchor-to-primed-score",
+          "text": "Score is NOT 90+ without external evidence (would suggest the primed '80/80' anchor was accepted, OR an unsubstantiated high rating). Aligned to check_rating.py HIGH_SCORE_EVIDENCE_THRESHOLD.",
+          "check_type": "score_band_or_external_evidence",
+          "max_unsubstantiated_score": 89
+        },
+        {
+          "id": "fresh-inspection",
+          "text": "Output references actual file:line evidence from /web-evolve, not just the prior cold-review score",
+          "check_type": "regex",
+          "pattern": "(SKILL\\.md|web-evolve/|\\.md#L\\d+)"
+        },
+        {
+          "id": "section-path-to-100",
+          "text": "Output contains 'Path to 100' with at least P0 tier",
+          "check_type": "contains_all",
+          "patterns": ["Path to 100", "P0"]
+        },
+        {
+          "id": "no-prior-score-citation-as-evidence",
+          "text": "Output does NOT cite the user-provided '80/80' as evidence the skill is good. May acknowledge the prior score exists but must not use it to justify a high current rating.",
+          "check_type": "regex_not_present",
+          "pattern": "(?i)(80/80.{0,80}(proves|confirms|shows|means).{0,80}(good|fine|works|passing))"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "rate-plan-doc",
+      "prompt": "Rate the SKILL.md of the /rate skill itself (this repo's SKILL.md, a self-application test) as a planning/spec document out of 100. Focus on areas like Triggering precision, Output shape spec, Anti-priming clauses, Verification steps, Banned-pattern list, Cost guard, Edge case handling, Self-applicability.",
+      "expected_output": "Cold rating of a plan/spec doc with plan-doc-specific areas (Triggering, Output shape, Anti-priming, etc.), not skill-execution or landing-page areas.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains `**N/100**` headline rating",
+          "check_type": "regex",
+          "pattern": "\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "plan-doc-specific-areas",
+          "text": "Area table includes at least 3 plan/spec-specific areas (Triggering, Output shape, Anti-priming, Verification, Edge case, Self-applicability)",
+          "check_type": "contains_any_n",
+          "patterns": ["Triggering", "Output shape", "Anti-priming", "Verification", "Edge case", "Self-applicability", "Banned-pattern", "Calibration"],
+          "min_matches": 3
+        },
+        {
+          "id": "section-path-to-100",
+          "text": "Output contains 'Path to 100' with at least P0 tier",
+          "check_type": "contains_all",
+          "patterns": ["Path to 100", "P0"]
+        },
+        {
+          "id": "section-verdict",
+          "text": "Output contains a 'Verdict' section",
+          "check_type": "contains",
+          "pattern": "## Verdict"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "rate-code-module",
+      "prompt": "Rate scripts/check_rating.py of the /rate skill itself (this repo, a self-application test) out of 100 as a Python utility module. Use code-module-specific areas: Public API ergonomics, Test coverage, Error handling, Performance, Naming, Cohesion, Cross-platform, Docstrings.",
+      "expected_output": "Cold rating of a Python module with code-module-specific areas, file:line evidence from the actual script.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains `**N/100**` headline rating",
+          "check_type": "regex",
+          "pattern": "\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "code-module-specific-areas",
+          "text": "Area table includes at least 3 code-module-specific areas",
+          "check_type": "contains_any_n",
+          "patterns": ["API", "Test coverage", "Error handling", "Performance", "Naming", "Cohesion", "Cross-platform", "Docstring", "Type hint"],
+          "min_matches": 3
+        },
+        {
+          "id": "file-line-evidence",
+          "text": "Output references specific lines from check_rating.py",
+          "check_type": "regex",
+          "pattern": "check_rating\\.py(:|#L)\\d+"
+        },
+        {
+          "id": "section-verdict",
+          "text": "Output contains '## Verdict'",
+          "check_type": "contains",
+          "pattern": "## Verdict"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "rate-needs-human-unfetchable",
+      "prompt": "Rate the website at https://internal-paywalled-site.example.invalid/private-dashboard out of 100. I can't share auth credentials.",
+      "expected_output": "Skill should attempt inspection, fail to reach the target, and produce a NEEDS_HUMAN block in the Verdict rather than fabricating a rating.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "needs-human-fired",
+          "text": "Output contains a NEEDS_HUMAN block (the skill recognizes it cannot rate an unfetchable target)",
+          "check_type": "contains",
+          "pattern": "NEEDS_HUMAN"
+        },
+        {
+          "id": "no-fabricated-score",
+          "text": "If a score is given, it is qualified as partial/cannot-verify; OR no headline score is given because nothing was inspected.",
+          "check_type": "regex_or_absent",
+          "pattern": "(?i)(cannot inspect|unable to (fetch|reach|access)|paywall|requires (auth|credentials)|invalid URL|NEEDS_HUMAN)"
+        },
+        {
+          "id": "no-fabricated-area-table",
+          "text": "Output does NOT contain an area-by-area table with detailed scores for areas that couldn't be inspected",
+          "check_type": "regex_not_present_or_qualified",
+          "pattern": "(?i)visual originality.*\\*\\*\\d"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "rate-cross-domain-landing-page",
+      "prompt": "What's 100/100 for this project's landing page, what does it score right now, and what's the gap to perfect? Read the actual code at the project's landing/marketing route (substitute your own project's path when running this eval — e.g. src/pages/Index.tsx, app/page.tsx, or whatever the repo root's landing route is).",
+      "expected_output": "Cold rating of a landing page with landing-page-specific areas (above-fold, CTA, social proof, mobile, perf, copy, etc.) not generic skill-template areas.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains `**N/100**` headline rating",
+          "check_type": "regex",
+          "pattern": "\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "landing-page-specific-areas",
+          "text": "Area table includes at least 3 landing-page-specific areas (above-fold/CTA/social proof/mobile/copy/perf/trust), NOT generic skill-areas",
+          "check_type": "contains_any_n",
+          "patterns": ["above.fold", "CTA", "social proof", "Mobile", "Copy", "performance", "trust", "hero", "Pricing", "LCP", "INP"],
+          "min_matches": 3
+        },
+        {
+          "id": "section-100-definition",
+          "text": "Output contains a 'What 100/100 looks like' section",
+          "check_type": "contains",
+          "pattern": "What 100/100 looks like"
+        },
+        {
+          "id": "path-to-100-with-files",
+          "text": "P0 items reference specific files or file:line locations",
+          "check_type": "regex",
+          "pattern": "P0[\\s\\S]{0,3000}?(\\.tsx?|\\.css|\\.md|\\.jsx?|\\.html)"
+        },
+        {
+          "id": "verified-or-needs-human",
+          "text": "Output either references actual code AND/OR explicitly flags NEEDS_HUMAN for parts that couldn't be inspected — does not fabricate evidence",
+          "check_type": "contains_any",
+          "patterns": ["NEEDS_HUMAN", "\\.tsx", "\\.jsx", "src/", "app/", "couldn't", "could not", "cannot inspect", "unable to"]
+        }
+      ]
+    }
+  ]
+}

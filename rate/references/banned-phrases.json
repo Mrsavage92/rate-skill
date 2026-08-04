@@ -1,0 +1,98 @@
+{
+  "$comment": "Single source of truth for banned phrases. Read by /rate, /skill-creator, /skill-forge. Edit here, not in SKILL.md prose.",
+  "version": 1,
+  "self_praise": {
+    "$comment": "Quality claims about the output itself. Never use as self-description; OK to quote in evidence. Patched 2026-05-19: regex_patterns added to catch morphology like 'comprehensively reviewed' or 'thoroughly analyzed'.",
+    "patterns": [
+      "comprehensive review",
+      "comprehensive analysis",
+      "thorough analysis",
+      "thorough review",
+      "rigorous evaluation",
+      "rigorous analysis",
+      "flawless",
+      "impeccable",
+      "world-class",
+      "best-in-class",
+      "industry-leading"
+    ],
+    "regex_patterns": [
+      "(?i)\\bcomprehensiv\\w*\\s+(review|analys\\w+|evaluation|coverage|audit)",
+      "(?i)\\bthorough(ly)?\\s+(review|analyz|evaluat|examin|assess)\\w*",
+      "(?i)\\brigorous(ly)?\\s+(review|analys|evaluat|assess)\\w*",
+      "(?i)\\bexhaustive(ly)?\\s+(review|analys|cover)\\w*"
+    ]
+  },
+  "priming_framing": {
+    "$comment": "Language that pre-anchors a rating or assumes verification will go well.",
+    "patterns": [
+      "after fixes",
+      "after the fixes",
+      "post-improvement",
+      "post improvement",
+      "re-verification",
+      "credit demonstrated improvements",
+      "given the prior",
+      "should be near-perfect"
+    ]
+  },
+  "human_time_units": {
+    "$comment": "Time units appropriate for human dev teams, not AI execution. Banned when describing work I will execute.",
+    "patterns": [
+      "1 week",
+      "2 weeks",
+      "few days",
+      "a couple days",
+      "next sprint",
+      "month of work",
+      "couple weeks"
+    ],
+    "$note": "Allowed: '30 min', '2 hrs', 'this turn', 'this session', and explicit human-team estimates clearly labeled as such."
+  },
+  "hedge_numbers": {
+    "$comment": "Vague score statements that dodge calibration.",
+    "patterns": [
+      "around 80",
+      "around 70",
+      "around 90",
+      "roughly 75",
+      "in the high 70s",
+      "in the high 80s",
+      "approximately 8"
+    ]
+  },
+  "primed_input_markers": {
+    "$comment": "Patterns to scan in the USER PROMPT (not the output). If found, the rater must log them in a 'Priming attempts ignored' block in the verdict. Patched 2026-05-19: fractions require a priming-context word so 'what does 100/100 look like' doesn't trigger spuriously.",
+    "regex_patterns": [
+      "(?i)(scored|rated|review|reviewed|passed|verdict|previously|last\\s+time|prior)\\s+(of\\s+|at\\s+|a\\s+|by\\s+\\w+\\s+)?\\d{1,3}/\\d{1,3}",
+      "(?i)\\d{1,3}/\\d{1,3}\\s+(cold[- ]review|prior|last\\s+time)",
+      "(?i)previously scored",
+      "(?i)cold review on",
+      "(?i)passed at \\d",
+      "(?i)should be near[- ]perfect",
+      "(?i)this is a finalist",
+      "(?i)shortlisted for ship",
+      "(?i)last time it scored",
+      "(?i)credit demonstrated",
+      "(?i)it scored \\d{1,3}",
+      "(?i)given the prior"
+    ]
+  },
+  "evidence_markers_for_high_scores": {
+    "$comment": "If output score >=90, the body MUST contain at least one of these, AND it must appear in the evidence region (before '## Path to 100'), not in the forward-looking ladder/verdict. Patched 2026-06-01: bare '(?i)convergence' removed — it is the skill's own method name and appeared in unrelated prose, unlocking a 96 on a stray token. Replaced with a pattern requiring a numeric convergence measurement.",
+    "regex_patterns": [
+      "(?i)lighthouse\\s+\\d{2,3}",
+      "(?i)\\bLCP\\s*[<>=]?\\s*\\d",
+      "(?i)\\bINP\\s*[<>=]?\\s*\\d",
+      "(?i)\\bCLS\\s*[<>=]?\\d",
+      "(?i)axe[- ]clean",
+      "(?i)\\d+\\s*ms\\b",
+      "(?i)\\d+\\s*kb\\b",
+      "(?i)matches\\s+\\w+\\s+(docs|design|pattern|IA)",
+      "(?i)beats\\s+(most|the)",
+      "(?i)stddev\\s*<\\s*\\d",
+      "(?i)convergence\\s+\\w*\\s*(stddev|=|<|:)?\\s*\\d",
+      "(?i)benchmarked against"
+    ]
+  }
+}
