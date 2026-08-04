@@ -3,6 +3,23 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.3] - 2026-08-04
+
+Prompted by a fourth independent cold rating (86/100, fresh subagent, no
+prior context) run against the merged `v0.1.2` state.
+
+### Added
+
+- GitHub Releases published for all three existing tags (`v0.1.0`, `v0.1.1`,
+  `v0.1.2`), backfilled with notes from `CHANGELOG.md` - previously only git
+  tags existed with an empty Releases panel.
+- `argument-hint` and `metadata.version`/`user-invocable` frontmatter fields
+  on `rate/SKILL.md`, matching the convention used by comparable skills in
+  this ecosystem.
+- An "API endpoint" eval (`eval-7-rate-api-endpoint`) and golden fixture -
+  `SKILL.md` names API endpoint as a starter target-type category but had no
+  corresponding eval coverage for it.
+
 ## [0.1.2] - 2026-08-04
 
 Prompted by a third independent cold rating (81/100, fresh subagent, no

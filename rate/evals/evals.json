@@ -237,6 +237,46 @@
           "patterns": ["NEEDS_HUMAN", "\\.tsx", "\\.jsx", "src/", "app/", "couldn't", "could not", "cannot inspect", "unable to"]
         }
       ]
+    },
+    {
+      "id": 7,
+      "name": "rate-api-endpoint",
+      "prompt": "Rate this REST API endpoint out of 100 (substitute your own project's actual endpoint file/route when running this eval — e.g. a FastAPI route, an Express handler, a Next.js API route). Use API-endpoint-specific areas: Auth/RLS, Input validation, Error envelope, Idempotency, Rate limit, Documentation, Versioning, Performance.",
+      "expected_output": "Cold rating of an API endpoint with API-specific areas (auth, input validation, error envelope, idempotency, rate limiting, etc.), not generic skill-template or landing-page areas.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "headline-score",
+          "text": "Output contains `**N/100**` headline rating",
+          "check_type": "regex",
+          "pattern": "\\*\\*\\d{1,3}/100\\*\\*"
+        },
+        {
+          "id": "api-endpoint-specific-areas",
+          "text": "Area table includes at least 3 API-endpoint-specific areas (Auth, Input validation, Error envelope, Idempotency, Rate limit, Versioning, Performance, Documentation), NOT generic skill or landing-page areas",
+          "check_type": "contains_any_n",
+          "patterns": ["Auth", "Input validation", "Error envelope", "Idempotency", "Rate limit", "Versioning", "Performance", "Documentation"],
+          "min_matches": 3
+        },
+        {
+          "id": "section-100-definition",
+          "text": "Output contains a 'What 100/100 looks like' section",
+          "check_type": "contains",
+          "pattern": "What 100/100 looks like"
+        },
+        {
+          "id": "section-path-to-100",
+          "text": "Output contains 'Path to 100' with at least P0 tier",
+          "check_type": "contains_all",
+          "patterns": ["Path to 100", "P0"]
+        },
+        {
+          "id": "section-verdict",
+          "text": "Output contains a 'Verdict' section",
+          "check_type": "contains",
+          "pattern": "## Verdict"
+        }
+      ]
     }
   ]
 }

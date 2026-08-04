@@ -1,6 +1,10 @@
 ---
 name: rate
 description: Cold, independently delegated 0-100 rating of any target - skill, code, page, plan, prompt, document, repository, or design. Produces a measurable definition of 100/100, a current score backed by evidence, and an ordered path to 100 ranked by value versus cost. The agent handling the request must not score its own work. Use when the user asks to rate, score, cold-review, benchmark, or identify the gap to 100/100. Distinct from /review, which performs an exhaustive issue scan and may auto-fix, and /critique, which focuses on UX feedback.
+metadata:
+  version: 0.1.3
+  user-invocable: true
+argument-hint: "<target: file path, directory, URL, or inline content>"
 ---
 
 # /rate - Independent Rating Skill
