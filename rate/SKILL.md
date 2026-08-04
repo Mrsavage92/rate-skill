@@ -1,87 +1,144 @@
 ---
 name: rate
-description: Cold, unbiased 0-100 rating of any target (skill, code, page, plan, prompt, doc, repo, design) with three-part output — concrete definition of 100/100, current score with per-area breakdown, and ordered path-to-100 with cost-to-fix estimates. Defaults to FIND-BUGS mode, not VERIFY-SUCCESS. Use when the user asks to "rate X out of 100", "score this", "non-biased review", "where do I really stand", "what's the gap to 100/100", "be brutally honest", "is this any good", "tell me where this sits", "what would 100/100 look like", "no fluff rating", or invokes `/rate`. Distinct from `/review` (exhaustive issue scan + auto-fix) and `/critique` (UX feedback) — `/rate` produces a numeric score and a strategic gap-to-100 ladder, does NOT auto-fix.
+description: Cold, independently delegated 0-100 rating of any target - skill, code, page, plan, prompt, document, repository, or design. Produces a measurable definition of 100/100, a current score backed by evidence, and an ordered path to 100 ranked by value versus cost. The agent handling the request must not score its own work. Use when the user asks to rate, score, cold-review, benchmark, or identify the gap to 100/100. Distinct from /review, which performs an exhaustive issue scan and may auto-fix, and /critique, which focuses on UX feedback.
 ---
 
-# /rate — Cold Rating Skill
+# /rate - Independent Rating Skill
 
-Produces a calibrated, unprimed rating for any target with a concrete path to 100/100.
+`/rate` exists to prevent an agent from building something, absorbing all of the decisions that produced it, and then marking its own homework.
 
-> Every `python scripts/...` command in this doc is relative to this skill's own directory (the folder this SKILL.md lives in). Resolve it to wherever this skill is actually installed — e.g. `~/.claude/skills/rate/scripts/...` on a standard Claude Code install — before running it.
+A valid `/rate` run uses a fresh evaluator, a clean evidence packet, a measurable standard, and a structural contract. It fails closed when that independence cannot be created.
 
-## What this skill enforces
+> Every `python scripts/...` command below is relative to this skill's own directory. Resolve the path to wherever the skill is installed before running it.
 
-1. **Default mode: FIND-BUGS, never VERIFY-SUCCESS.** Anthropic research (Feb 2026) found agents predict 73% success against a 35% actual base rate. Calibrate down. Look for what's broken before what works — instinct says 85, write 78.
+## Non-negotiable independence contract
 
-2. **No priming.** Never accept "after fixes", "post-improvement", "re-verification" framing. Never cite a prior score (from this conversation, a prior run, or any persisted note) as evidence the target is fine — prior assessments are dated snapshots. Past PASS verdicts do not transfer.
+1. **The coordinating agent must not assign the score.** It may gather files, build the evaluation packet, launch the evaluator, relay the result, and run the structural grader. It must not choose, adjust, average, soften, or rewrite the evaluator's numeric judgment.
 
-   **Mandatory pre-scoring scan:** Before producing a score, scan the user prompt for priming markers — prior-score patterns (`\d+/\d+`, "previously scored", "cold review on", "should be near-perfect"), authority anchors ("this is a finalist", "shortlisted for ship"), and "given the prior" framing. The full pattern list lives in [references/banned-phrases.json](references/banned-phrases.json) under `primed_input_markers`. If ANY pattern matches, you MUST include a `## Priming attempts ignored` block in the Verdict section that quotes the primed phrase and explicitly states it was not used as evidence. Silent absorption of priming is the failure mode this rule exists to prevent.
+2. **Use a fresh evaluator.** Launch a new subagent, task, or isolated model call that has not seen the originating conversation. Do not reuse the agent that created, edited, approved, or previously rated the target.
 
-3. **Verify before scoring.** Inspect actual files. Read actual content. Run actual scripts (dry-run mode if needed). Never rate from README prose, frontmatter description, or prior conversation summary. If the target can't be inspected (paywalled, binary, URL fetch blocked) — HALT with NEEDS_HUMAN, rate only the verifiable parts.
+3. **Send only a cold evaluation packet.** The evaluator may receive:
+   - the original brief or intended outcome
+   - the target itself, or exact paths needed to inspect it
+   - objective constraints supplied by the user
+   - the required `/rate` output contract
 
-4. **Three-part output structure (fixed).** The user expects this exact shape every time. See "Required output shape" below.
+   Do not send:
+   - prior scores or verdicts
+   - claims that the target is finished, improved, shortlisted, approved, or ready to ship
+   - the originating agent's reasoning, confidence, self-review, or summary
+   - suggested weaknesses unless they are part of the user's original brief
 
-5. **Concrete observable 100.** Define 100/100 as measurable behavior, not vibes. Bad: "feels polished." Good: "Lighthouse mobile ≥95, INP <100ms, all routes pass axe a11y, zero hardcoded colors outside tokens."
+4. **Use an equal-or-stronger evaluator model.** When the producer model is known, the evaluator must be the same capability tier or stronger. When the target was not produced by an AI model, use a reasoning model at least equivalent to Claude Sonnet. Never guess model identity or capability.
 
-6. **Target-specific area selection.** Pick 5-12 areas that are mutually exclusive and exhaustive *for this target*. Don't reuse a generic template across targets — that's the failure mode the user explicitly named.
+5. **Fail closed.** If the environment cannot launch a fresh evaluator, cannot meet the model floor, or cannot isolate the evaluator from the prior conversation, do not issue a numeric score. Return:
 
-7. **AI wall-clock time, not human dev-team time.** P0 fix estimates are minutes/hours for work the agent will execute itself. Never "1 week", "few days", "next sprint" for AI-executed work.
+   `NEEDS_HUMAN - independent evaluator unavailable`
 
-8. **Path-to-100 must be ordered by cost-to-fix vs value.** Not by severity, not by area — by what closes the biggest gap per hour.
+   State exactly which requirement could not be verified. Never label a same-session self-review as independent.
 
-9. **Model floor: this rating requires reasoning at least as strong as Claude Sonnet (or an equivalent-or-stronger frontier model).** A rating is a judgment call, not a lookup — a lightweight/fast model will under-inspect and over-trust surface signals, reproducing exactly the 73%-vs-35% overconfidence gap rule 1 exists to correct. If the current session is running on a weaker/faster model than that (e.g. a Haiku-tier or "fast mode" model), do not lower the bar to match it. Instead, delegate the actual rating judgment to a subagent or task call with an explicit model override to Sonnet-tier or stronger before producing output. If no model override is available in the current environment, say so explicitly in the Verdict rather than silently shipping a rating produced by a weaker model.
+## Rating workflow
 
-10. **Post-output grader — run it, and wire it as a hook if your environment supports one.** [scripts/check_rating.py](scripts/check_rating.py) is the structural contract this skill commits to. Run it against every rating you produce, manually or automated:
+### 1. Build the evaluation packet
 
-    ```bash
-    python scripts/check_rating.py <path-to-rating.md> [--prompt "<user-prompt>"]
-    ```
+Capture the original brief, the target locator or content, and any objective constraints. Strip prior ratings, success claims, and commentary about quality.
 
-    Exit 0 = ship. Exit 1 = revise — fix the reported issues and re-emit before ending the turn. Exit 2 = grader misconfigured (file missing) — surface to user, do not silently skip.
+For a self-rate, or when the current session created or modified the target, load [references/self-rating-disclosure.md](references/self-rating-disclosure.md) and disclose the contamination risk to the user before delegation.
 
-    The grader validates shape, banned phrases, the 90+-needs-evidence rule (evidence must sit in the assessment, before `## Path to 100` — not in the forward-looking ladder), and the priming-acknowledgement rule (pass `--prompt` with the raw user prompt to enable it).
+### 2. Run the cost guard
 
-    For automatic enforcement (no reliance on remembering to run it), this bundle ships portable Python hook scripts under [hooks/](hooks/) — see [hooks/README.md](hooks/README.md) for wiring instructions on Claude Code (or any harness with an equivalent Stop/PostResponse hook). These are optional: the skill's contract is fully satisfied by running the grader manually.
-
-## Cost guard (pre-rating)
-
-Before producing a rating, run the cost-guard script:
+For a local file or directory:
 
 ```bash
 python scripts/cost_guard.py <target-path>
 ```
 
-Exit 0 = proceed. Exit 1 = surface the warning to the user before scoring. Exit 2 = target unreadable (HALT, NEEDS_HUMAN).
+- Exit 0 - proceed.
+- Exit 1 - warn that the scope may be too large for one meaningful pass, then narrow it or continue only with explicit user confirmation.
+- Exit 2 - halt because the target cannot be inspected.
 
-Thresholds (enforced by the script, not prose):
+Current thresholds:
 
-- **Single file >2000 LOC** → warn, suggest narrowing or switching to `/full-audit` / `/parallel-audit`
-- **Directory >50 rateable files** → warn, suggest `/full-audit` (9 specialized suites) or `/parallel-audit`
+- single file over 2,000 lines
+- directory containing more than 50 rateable files
 
-Excluded from directory counts: `node_modules`, `.git`, `.venv`, `dist`, `build`, `__pycache__`, `vendor`, `target`, `coverage`. Counted extensions are code + docs + config (no binaries).
+The script excludes common generated and dependency directories. Inline prose, bounded URLs, and single pages do not need the cost guard.
 
-If the target is inline prose, a URL, or a single component/page, skip the cost guard — those are bounded by definition.
+### 3. Launch the fresh evaluator
 
-Do not block — warn once, then proceed if the user confirms scope. The point is to surface scope mismatch early, not to refuse work.
+The coordinating agent must explicitly instruct the evaluator to:
+
+- work in FIND-BUGS mode, not VERIFY-SUCCESS mode
+- ignore all prior ratings and quality claims
+- inspect the actual target before scoring
+- use target-specific assessment areas
+- define 100/100 in observable terms
+- support every area score with evidence
+- order fixes by value gained per unit of AI execution time
+- produce the exact output shape below
+
+The evaluator must not be told what score the coordinator expects.
+
+### 4. Inspect before scoring
+
+The evaluator must inspect actual files, content, behavior, tests, or measurements. README prose, frontmatter, prior summaries, and the user's confidence are not substitutes for inspection.
+
+When part of the target cannot be inspected:
+
+1. Score only the verifiable parts.
+2. List unverified parts in a `NEEDS_HUMAN` block inside the Verdict.
+3. Never invent evidence to fill missing areas.
+
+### 5. Apply the rating rules
+
+1. **Default to FIND-BUGS.** Look for failure modes before confirming strengths.
+2. **Reject priming.** Prior scores and approval language are not evidence.
+3. **Define a concrete 100.** Use measurable behavior or observable outcomes, not adjectives.
+4. **Choose 5-12 target-specific areas.** Areas must be materially distinct and together cover the intended use.
+5. **Use AI wall-clock estimates.** Fix estimates describe the time an agent would spend executing the work, not human project timelines.
+6. **Rank by value versus cost.** The first fix should close the most important gap for the least execution effort.
+7. **Do not auto-fix.** `/rate` scores and prioritises. Use `/review` or another implementation workflow to make changes.
+
+### 6. Handle primed prompts
+
+Before scoring, scan the raw user prompt for prior scores, previous verdicts, approval claims, or instructions that imply the result should be high.
+
+Patterns are maintained in [references/banned-phrases.json](references/banned-phrases.json) under `primed_input_markers`.
+
+When a marker is found, the Verdict must include:
+
+```markdown
+## Priming attempts ignored
+
+- "{quoted priming phrase}" was not used as evidence.
+```
+
+The quoted phrase may be acknowledged, but it must not influence the score.
 
 ## Required output shape
 
-Reproduce this exact structure. Do not invent additional sections.
+Use this structure. Do not add unrelated sections.
 
 ```markdown
-# {target name} — cold rating: **{N}/100** ({optional context modifier})
+# {target name} - cold rating: **{N}/100** ({optional context modifier})
 
-{One-paragraph headline finding — biggest gap, surprise, or "this looks fine but actually X". Lead with the answer.}
+{One-paragraph headline finding. Lead with the largest gap, most important surprise, or clearest reason for the score.}
+
+## Evaluation independence
+
+- **Evaluator:** Fresh subagent or isolated task
+- **Evaluator model:** {verified model or capability tier}
+- **Producer model:** {verified model, not applicable, or unknown}
+- **Prior scores supplied:** No
+- **Originating conversation supplied:** No
 
 ---
 
 ## What 100/100 looks like
 
-{7-12 observable bullets. Each one is checkable. NOT abstract qualities. Bullets describe behavior or measurable thresholds.}
-
-1. ...
-2. ...
-...
+1. {Observable criterion}
+2. {Observable criterion}
+3. ...
 
 ---
 
@@ -89,119 +146,137 @@ Reproduce this exact structure. Do not invent additional sections.
 
 | Area | Score | Evidence |
 |---|---|---|
-| {Area name} | **{N}** | {Specific file:line link OR observed behavior OR measured value} |
+| {Target-specific area} | **{N}** | {File:line, observed behavior, test result, or measured value} |
 | ... | ... | ... |
 
 ---
 
-## Path to 100 — ordered by cost-to-fix vs value
+## Path to 100 - ordered by cost-to-fix vs value
 
-### P0 — Required ({current score} → ~{intermediate})
-1. **{Headline fix}.** {Specific change}. ~{N min/hours}. {Files affected with markdown links}.
-2. ...
+### P0 - Required ({current score} to ~{intermediate})
+1. **{Headline fix}.** {Specific change}. ~{N min/hours}. {Files or locations}.
 
-### P1 — Nice-to-have ({intermediate} → ~{better})
-3. ...
+### P1 - Value multipliers ({intermediate} to ~{better})
+2. **{Headline fix}.** {Specific change}. ~{N min/hours}. {Files or locations}.
 
-### P2 — Polish ({better} → 100)
-4. ...
+### P2 - Polish ({better} to 100)
+3. **{Headline fix}.** {Specific change}. ~{N min/hours}. {Files or locations}.
 
 ---
 
 ## Verdict
 
-{One paragraph. State the score, the context modifier (if applicable), and the single recommended next action. End with a direct offer or a falsifiable question — never "let me know if you want X".}
+{State the score, the decisive reason, and the single recommended next action. Include NEEDS_HUMAN or Priming attempts ignored blocks here when required.}
 ```
 
 ## Score calibration
 
 | Range | Meaning |
 |---|---|
-| 95-100 | Reference-class. An expert reviewer would say "this is how you do it." Rare. Requires external comparator or measured metric — never just vibe. |
-| 85-94 | Strong. All gaps are P1/P2. Ship. |
-| 70-84 | Working but with at least one P0. Use today, fix this week. |
-| 50-69 | Functional but headline issue blocks intended use. |
-| 30-49 | Concept right, execution wrong. Rewrite likely cheaper than fix. |
-| 0-29 | Doesn't do the thing it claims. |
+| 95-100 | Reference-class. Rare. Requires a relevant external comparator or measured result. |
+| 85-94 | Strong. Safe to ship for its intended use. Remaining gaps are non-blocking. |
+| 70-84 | Working, but at least one important issue should be fixed soon. |
+| 50-69 | Functional, but a headline issue blocks the intended use or undermines trust. |
+| 30-49 | The concept may be sound, but substantial rework is cheaper than incremental polishing. |
+| 0-29 | The target does not reliably do what it claims. |
 
-If you score 90+, your evidence must include either an external comparator ("matches Stripe Docs IA", "beats most shadcn templates") OR a measured metric ("Lighthouse 96, INP 80ms"). Never 90+ on pure prose impression.
+A score of 90 or above requires measured evidence or a relevant external comparator in the assessment itself. Future intentions in the Path to 100 do not count as current evidence.
 
-## Area selection by target type (starter sets — adapt to the actual target)
+Avoid rounding to a number ending in 0 or 5 unless the evidence genuinely supports it. Pick a number and defend it.
 
-The point of area selection is to fit the target, not to fill a template. These are starting points only.
+## Target-specific area starters
 
-- **Skill (Claude skill)**: Intent capture, Authoring guidance, Test loop, Benchmarking, Eval viewer, Anti-priming, Cross-platform runnability, Documentation, Self-triggering, Code quality of bundled scripts
-- **Landing page**: Above-fold clarity, CTA placement, Social proof, Pricing legibility, Mobile, Performance (LCP/INP/CLS), Trust signals, A11y, Copy specificity, Visual originality
-- **Code module / library**: Public API ergonomics, Test coverage, Error handling, Performance, Naming, Cohesion, Cross-platform, Docstrings, Backwards compat
-- **Plan / strategy doc**: Success criterion defined, Owner per task, Risk register, Falsifiable verification step, Cost forecast, Timeline realism, Stakeholder alignment, Dependency map
-- **Prompt / SKILL.md**: Triggering precision, Output shape spec, Anti-priming clauses, Verification steps, Cost guard, Edge case handling, Banned-pattern list, Self-applicability
-- **API endpoint**: Auth/RLS, Input validation, Error envelope, Idempotency, Rate limit, Documentation, Versioning, Performance
+These are prompts, not fixed templates. Adapt them to the actual target.
 
-If you don't know the target's domain well enough to write concrete areas, ask 1-2 questions before scoring — never invent generic areas.
+- **Agent skill:** Trigger precision, independence, inspection depth, anti-priming, output contract, calibration, tests, cross-platform execution, documentation, failure handling
+- **Landing page:** Above-fold clarity, offer specificity, CTA, proof, mobile behavior, performance, accessibility, trust, copy, visual originality
+- **Code module:** Public API, correctness, tests, errors, security, performance, cohesion, compatibility, documentation
+- **Plan or strategy:** Success criteria, ownership, dependencies, risks, cost, timeline, verification, stakeholder alignment
+- **Prompt or SKILL.md:** Triggering, instruction hierarchy, edge cases, verification, contamination controls, failure behavior, output shape, eval coverage
+- **API endpoint:** Authentication, authorization, validation, error contract, idempotency, rate limits, performance, documentation, versioning
 
-## Path-to-100 ladder rules
+When the domain is too specialised to define observable areas, ask one or two focused questions before delegation.
 
-- **P0 is non-negotiable.** Addresses the headline gap. Without it the score can't move out of the current band.
-- **P1 is value-multiplier.** Real impact but not blocking.
-- **P2 is polish.** Last-mile.
-- Each item: **specific change + AI wall-clock time + files/locations with markdown links**.
-- Max 4 items per tier. If you have 8 P0s, the target needs a rewrite — say so in the verdict.
-- Estimates are concrete: "30 min", "2-3 hrs", "this turn". Banned: "1 week", "next sprint", "a couple days".
+## Path-to-100 rules
 
-## Anti-patterns (banned in the output)
+- P0 addresses the issue preventing the target from moving into the next score band.
+- P1 materially improves value or reliability but is not blocking current use.
+- P2 covers last-mile polish.
+- Each item must contain a specific change, an AI wall-clock estimate, and the affected location.
+- Maximum four items per tier.
+- If there are more than four genuine P0 items, state that a rewrite or redesign is likely cheaper.
 
-- Rating a target you haven't actually inspected. Prior conversation summaries, memory, and README prose don't count as inspection.
-- Same area template across different targets (always "Performance / Maintainability / Documentation").
-- "After fixes" / "post-improvement" / "re-verification" framing — primes the next review.
-- Hedge numbers ("around 80", "roughly 75", "in the high 70s"). Pick a number, defend it.
-- Self-praise / quality-claim language ("comprehensive", "thorough", "rigorous", "perfect") used to describe your own rating work. These are quality assertions the rating hasn't earned — evidence earns the score, not adjectives.
-- Generic 100/100 definitions ("clean code", "great UX", "well-organized"). Define observably or don't define.
-- Round numbers ending in 0 or 5 without justification. If the math says 78, write 78 — not 80.
-- Padding the rating with N/A areas to inflate "passes". State which areas don't apply and why, but don't count them toward the score.
+## Banned output patterns
 
-## When the user asks about a target that can't be fully inspected
+- Rating a target that was not inspected
+- Letting the producer agent assign or alter the score
+- Calling a same-session review independent
+- Sending prior scores or approval claims to the evaluator
+- Reusing generic assessment areas across unrelated target types
+- Vague 100/100 definitions such as "clean", "polished", or "well organised"
+- Unsupported quality claims about the rating itself
+- Hedge scores such as "around 80" or "high 70s"
+- Human delivery estimates such as "next sprint" for agent-executed fixes
+- Padding the area table with non-applicable categories
+- Claiming the structural grader proves the score is correct
 
-If the target is a URL you can't fetch, a binary you can't run, code behind a paywall, or a description without a file path:
+## Structural grader
 
-1. Rate only the parts you can verify.
-2. List the unverified parts in a NEEDS_HUMAN block in the Verdict section.
-3. Never fabricate evidence. Better to score 6 areas honestly than 11 by guessing on 5.
+After the evaluator produces the rating, save the output and run:
 
-## Triggering examples
+```bash
+python scripts/check_rating.py <path-to-rating.md> --prompt "<raw-user-prompt>"
+```
 
-**Should trigger:**
-- "/rate {target}"
-- "Rate this skill out of 100"
-- "Give me a non-biased review of my landing page"
-- "What's actually broken about this prompt?"
-- "Tell me where this really sits — no fluff"
-- "What would 100/100 look like for /web-evolve?"
-- "Be brutally honest about this plan"
+- Exit 0 - the report satisfies the structural contract.
+- Exit 1 - revise the report and run the grader again.
+- Exit 2 - surface the grader failure and do not silently skip it.
+
+The grader checks structure, banned language, priming acknowledgement, P0 time estimates, and the evidence requirement for high scores. It does **not** determine whether the evaluator's judgment is correct. Score quality still depends on inspection, model capability, and domain knowledge.
+
+Optional hooks under [hooks/](hooks/) can run the grader automatically in supported environments.
+
+## Convergence checks
+
+For a high-stakes rating, suspected calibration drift, or a score above 90, run multiple fresh evaluators against the same cold packet and compare them with:
+
+```bash
+python scripts/convergence_check.py <rating-1.md> <rating-2.md> [rating-3.md ...]
+```
+
+High variance is a finding, not something to average away silently. Report the spread and investigate why evaluators disagreed.
+
+## Triggering
+
+**Use `/rate` for:**
+
+- `/rate <target>`
+- "Rate this out of 100"
+- "Give me a cold, independent review"
+- "Where does this really sit?"
+- "What would 100/100 look like?"
 - "Score this PRD"
+- "Be brutally honest about this plan"
 
-**Should NOT trigger (use the better-fit skill):**
-- "Review this code" → `/review` (exhaustive issue scan + auto-fix)
-- "Critique this design" → `/critique` (UX feedback, persona-based)
-- "Audit this site" → `/audit`, `/full-audit`, `/seo-auditor` (deeper domain logic)
-- "What do you think of this?" → too vague, ask for clarification on what aspect
+**Use a different workflow for:**
 
-If unsure between `/rate` and a specific audit skill: prefer the audit skill when the user wants exhaustive findings or auto-fixes; prefer `/rate` when the user wants a numeric score and a strategic gap-to-100 ladder.
+- "Review and fix this code" - use `/review`
+- "Critique this design" - use `/critique`
+- "Run a full website audit" - use the appropriate audit skill
+- "What do you think?" - ask what dimension the user wants assessed
 
 ## Self-application
 
-This SKILL.md should itself be rateable by `/rate`. If you (the rater) find that running `/rate` on this file produces a score below 85, log the gap in the verdict so the skill can be improved.
+This skill should itself be rateable by `/rate`, but never by the same evaluator that authored or edited it. A self-rate still requires a fresh agent, the contamination disclosure, and a passing structural grade.
 
-For self-rates (rating a target you built, modified, or rated before in this session), load the contamination disclosure template at [references/self-rating-disclosure.md](references/self-rating-disclosure.md) and drop the disclosure block immediately after the headline score, before "What 100/100 looks like".
+## Related files
 
-After every rating run, the structural grader at [scripts/check_rating.py](scripts/check_rating.py) must pass. The grader is the contract — if you've written prose that says "I follow the rules" but the grader exits 1, you have not followed the rules. Revise.
-
-## Related scripts
-
-- [scripts/check_rating.py](scripts/check_rating.py) — post-output structural grader (mandatory)
-- [scripts/cost_guard.py](scripts/cost_guard.py) — pre-rating size check (>2000 LOC file, >50-file directory)
-- [scripts/convergence_check.py](scripts/convergence_check.py) — compares N independent rating runs of the same target, reports mean + stddev. Use when calibration drift is suspected or before publishing a 90+ score.
-- [scripts/_rate_lib.py](scripts/_rate_lib.py) — shared helpers (`extract_score`, `is_quoted_reference`, `iter_phrase_matches`, `HIGH_SCORE_EVIDENCE_THRESHOLD`). Imported by all bundled scripts so they cannot drift apart.
-- [evals/grade_evals.py](evals/grade_evals.py) — runs `evals.json` assertions against rating outputs. Uses the shared lib so it agrees with `check_rating.py` on quote-aware exemptions.
-- [references/banned-phrases.json](references/banned-phrases.json) — single source of truth for self-praise, priming, hedge-number, and human-time-unit patterns. Edit here, not in prose.
-- [tests/run_tests.py](tests/run_tests.py) — cross-platform regression suite (8 tests covering priming, quote-awareness, bulleted P0s, grader agreement, missing-output handling, structural-pass regression). Fully self-contained — no external fixtures outside this repo.
-- [hooks/](hooks/) — optional cross-platform (pure Python) Stop / UserPromptSubmit hooks for automatic grader enforcement. See [hooks/README.md](hooks/README.md).
+- [scripts/check_rating.py](scripts/check_rating.py) - mandatory structural grader
+- [scripts/cost_guard.py](scripts/cost_guard.py) - pre-rating scope warning
+- [scripts/convergence_check.py](scripts/convergence_check.py) - comparison of independent rating runs
+- [scripts/_rate_lib.py](scripts/_rate_lib.py) - shared parsing and phrase-matching helpers
+- [evals/grade_evals.py](evals/grade_evals.py) - eval assertion runner
+- [references/banned-phrases.json](references/banned-phrases.json) - source of truth for banned and priming patterns
+- [references/self-rating-disclosure.md](references/self-rating-disclosure.md) - contamination disclosure for self-rates
+- [tests/run_tests.py](tests/run_tests.py) - cross-platform regression suite with 12 assertions
+- [hooks/](hooks/) - optional automatic enforcement hooks
