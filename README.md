@@ -1,28 +1,73 @@
 # /rate
 
-A cold, unbiased 0-100 rating skill for Claude Code (or any agent harness that supports loadable skills / system-prompt instructions and can run Python).
+A cold 0-100 rating skill that does not let the agent that produced the work mark its own homework.
 
-Point it at anything - a skill, a code module, a landing page, a plan, a prompt, a repo - and it returns three things, in a fixed order, every time:
+Point it at code, a landing page, a plan, a prompt, a document, a repository, a design, or another agent skill. A valid run launches a fresh evaluator and returns:
 
-1. **A concrete, observable definition of 100/100.** Not "feels polished" - measurable thresholds like "Lighthouse mobile >= 95" or "every route passes an axe accessibility scan."
-2. **A current score with per-area evidence.** Every number is backed by a specific file:line, observed behavior, or measured value - never a vibe.
-3. **An ordered path to 100**, ranked by cost-to-fix vs value, with concrete AI wall-clock time estimates on every item.
+1. **A concrete definition of 100/100** using observable criteria.
+2. **A current score with evidence** for every assessment area.
+3. **An ordered path to 100** ranked by value gained versus AI execution time.
 
-## Why this exists
+## The important difference
 
-Agentic self-assessment is structurally biased toward "looks good, ship it." This skill exists to be the opposite: it defaults to FIND-BUGS mode rather than VERIFY-SUCCESS, refuses to accept a prior score (from this session or anywhere else) as evidence the target is fine, and bans hedge language and self-praise in its own output.
+The coordinating agent is not allowed to assign, adjust, or soften the score.
 
-It backs that up with a real enforcement layer, not just prose the model is supposed to follow:
+`/rate` requires a fresh evaluator that:
 
-- **A structural grader** ([rate/scripts/check_rating.py](rate/scripts/check_rating.py)) checks every rating against the contract - required sections, banned phrases, time estimates on every P0 item, evidence required for any score >= 90.
-- **A cost guard** ([rate/scripts/cost_guard.py](rate/scripts/cost_guard.py)) warns before rating a target too large for one pass to meaningfully cover.
-- **A convergence checker** ([rate/scripts/convergence_check.py](rate/scripts/convergence_check.py)) compares N independent runs against the same target and flags high variance.
-- **Optional hooks** ([rate/hooks/](rate/hooks/)) make the grader run automatically and block the turn if a rating fails its own contract, instead of relying on the model to remember.
-- **A regression test suite** ([rate/tests/](rate/tests/)) and an **eval set** ([rate/evals/](rate/evals/)) so changes to the skill can be checked against known-good and known-bad behavior.
+- has not seen the conversation that produced the target
+- receives no previous scores or approval claims
+- uses the same model capability tier as the producer, or a stronger one, when the producer model is known
+- uses at least a Sonnet-equivalent reasoning model for non-AI targets
+- inspects the actual target before scoring
 
-All bundled scripts are pure Python stdlib - no OS-specific shell syntax - so the enforcement layer runs the same way on Windows, macOS, and Linux.
+If the environment cannot create that separation, `/rate` fails closed with:
 
-## Install (Claude Code)
+```text
+NEEDS_HUMAN - independent evaluator unavailable
+```
+
+It never labels a same-session self-review as independent.
+
+## What each rating contains
+
+### 1. A measurable 100/100
+
+Not "feels polished" or "looks professional". The evaluator must define observable criteria such as:
+
+- Lighthouse mobile score of at least 95
+- every route passes an accessibility scan
+- all public functions have tested error paths
+- every action in a plan has an owner and falsifiable completion check
+
+### 2. A score with a paper trail
+
+Every assessment area must cite something inspectable:
+
+- a file and line
+- observed behavior
+- a test result
+- a measured value
+- a relevant external comparator
+
+Prior ratings and claims that the work is finished are not evidence.
+
+### 3. A path to 100
+
+Fixes are ordered by the amount of score and value they recover for the time required. Each item includes a concrete change, affected location, and AI wall-clock estimate.
+
+## Enforcement layer
+
+The repository includes pure Python standard-library tooling:
+
+- **Structural grader** - checks required sections, banned phrases, priming acknowledgement, P0 time estimates, and evidence for high scores
+- **Cost guard** - warns when a target is too large for one meaningful pass
+- **Convergence checker** - compares multiple independent ratings and flags high variance
+- **Optional hooks** - automatically block a response that breaks the output contract
+- **Regression tests and evals** - protect the contract as the skill changes
+
+The structural grader checks whether a report follows the contract. It does not prove that the numeric judgment is correct. Rating quality still depends on inspection, evaluator capability, and domain knowledge.
+
+## Install in Claude Code
 
 Copy the `rate/` directory into your skills folder:
 
@@ -30,29 +75,50 @@ Copy the `rate/` directory into your skills folder:
 cp -r rate ~/.claude/skills/rate
 ```
 
-Then invoke it with `/rate <target>` - a file path, a directory, a URL, or inline text/prose to evaluate.
+Then run:
 
-Optional: wire the hooks for automatic grader enforcement. See [rate/hooks/README.md](rate/hooks/README.md).
+```text
+/rate <target>
+```
 
-## Install (other agent harnesses)
+The target can be a file path, directory, URL, or inline content.
 
-The skill itself is a single Markdown file ([rate/SKILL.md](rate/SKILL.md)) written as instructions for an LLM agent with file-read and bash/Python execution access. Any harness that can load a system prompt or skill file and let the model run `python scripts/*.py` should work - adjust the install step to wherever your harness looks for skill definitions.
+For automatic post-response enforcement, see [rate/hooks/README.md](rate/hooks/README.md).
+
+## Other agent harnesses
+
+The core skill is [rate/SKILL.md](rate/SKILL.md). It can work in another harness when that environment provides:
+
+- file or content inspection
+- Python execution
+- a fresh isolated subagent or task call
+- a model at least equivalent to Claude Sonnet for the evaluator
+
+A harness without isolated delegation can use the supporting scripts, but it cannot claim a fully independent `/rate` run.
 
 ## Requirements
 
-- Python 3.9+ (pure stdlib - no pip installs required for any bundled script)
-- An agent with file-read access and the ability to run shell commands
-- A model at least as capable as Claude Sonnet for the rating judgment itself (see SKILL.md rule 9) - a lighter/faster model will under-inspect and reproduce the exact overconfidence problem this skill exists to correct
+- Python 3.9 or newer
+- no pip dependencies
+- an agent with file-read and Python execution access
+- isolated subagent or task support for independent ratings
+- Sonnet-equivalent or stronger evaluator model
 
-## Verify it works
+## Verify the repository
 
 ```bash
 cd rate
 python tests/run_tests.py
 ```
 
-Should print `Result: 12 passed, 0 failed`. The suite is fully self-contained - no fixtures or paths outside this repository.
+Expected result:
+
+```text
+Result: 12 passed, 0 failed
+```
+
+The suite is self-contained and uses no fixtures outside this repository.
 
 ## License
 
-MIT. Use it, fork it, adapt the calibration bands and area templates to your own domain.
+MIT. Use it, fork it, or adapt the calibration rules and target-specific assessment areas for your own workflow.
