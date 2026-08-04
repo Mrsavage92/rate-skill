@@ -171,7 +171,7 @@ function install(target, quiet) {
 
   if (!quiet) {
     console.log(`${updating ? 'Updated' : 'Installed'} /rate at ${target}`);
-    console.log('Restart Claude Code or run /reload-plugins, then use: /rate <target>');
+    console.log('Restart Claude Code, then use: /rate <target>');
     console.log('Update later by running the same npx command again.');
   }
 }
