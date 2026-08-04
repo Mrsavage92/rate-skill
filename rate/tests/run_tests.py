@@ -22,6 +22,10 @@ Test coverage:
     T11 hooks/rate_capture_prompt.py writes the prompt from stdin JSON
     T12 hooks/rate_grade_gate.py BLOCKS a structurally-failing rating
     T13 hooks/rate_grade_gate.py allows a structurally-passing rating silently
+    T14 cost_guard.py WARNs (exit 1) on a file over the LOC threshold
+    T15a convergence_check.py converges (exit 0) on close bundled fixture scores
+    T15b convergence_check.py flags low convergence (exit 1) under a tight threshold
+    T15c convergence_check.py exits 2 on fewer than 2 input paths
 
 All fixtures are bundled under tests/fixtures/ — this suite has no dependency
 on anything outside this repository and runs identically wherever it's cloned.
@@ -44,6 +48,7 @@ from pathlib import Path
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 GRADER = SKILL_ROOT / "scripts" / "check_rating.py"
 COST_GUARD = SKILL_ROOT / "scripts" / "cost_guard.py"
+CONVERGENCE_CHECK = SKILL_ROOT / "scripts" / "convergence_check.py"
 GRADE_EVALS = SKILL_ROOT / "evals" / "grade_evals.py"
 EVALS_JSON = SKILL_ROOT / "evals" / "evals.json"
 FIXTURES = SKILL_ROOT / "tests" / "fixtures"
@@ -455,6 +460,53 @@ assertion(
 )
 Path(transcript_path).unlink(missing_ok=True)
 PROMPT_FILE.unlink(missing_ok=True)  # in case T12/T13 or an earlier failure left one behind
+
+# --- T14: cost_guard.py WARNs (exit 1) on a file over the LOC threshold ---
+print("[T14] cost_guard.py WARNs on a file over the 2000-LOC threshold")
+with tempfile.NamedTemporaryFile(
+    mode="w", suffix=".py", delete=False, encoding="utf-8"
+) as tf:
+    tf.write("\n".join(f"# line {i}" for i in range(2001)))
+    big_file = tf.name
+rc, out = run([str(COST_GUARD), big_file])
+assertion(
+    "T14: oversized file -> exit 1 + [cost_guard WARNING]",
+    rc == 1 and "[cost_guard WARNING]" in out and "threshold" in out,
+    f"rc={rc}\n{out}",
+)
+Path(big_file).unlink(missing_ok=True)
+
+# --- T15a: convergence_check.py converges on close bundled fixture scores ---
+print("[T15a] convergence_check.py converges (exit 0) at the default threshold")
+convergence_inputs = [
+    str(FIXTURES / "regression_fixture_skill.md"),  # 76
+    str(FIXTURES / "regression_fixture_landing_page.md"),  # 71
+    str(FIXTURES / "regression_fixture_anti_priming.md"),  # 68
+]
+rc, out = run([str(CONVERGENCE_CHECK), *convergence_inputs])
+assertion(
+    "T15a: default threshold (5.0) -> CONVERGED",
+    rc == 0 and "[CONVERGED]" in out,
+    f"rc={rc}\n{out}",
+)
+
+# --- T15b: convergence_check.py flags low convergence under a tight threshold ---
+print("[T15b] convergence_check.py flags low convergence (exit 1) under --threshold 1")
+rc, out = run([str(CONVERGENCE_CHECK), *convergence_inputs, "--threshold", "1"])
+assertion(
+    "T15b: threshold 1.0 -> LOW CONVERGENCE",
+    rc == 1 and "[LOW CONVERGENCE]" in out,
+    f"rc={rc}\n{out}",
+)
+
+# --- T15c: convergence_check.py exits 2 on fewer than 2 input paths ---
+print("[T15c] convergence_check.py exits 2 with only 1 input path")
+rc, out = run([str(CONVERGENCE_CHECK), convergence_inputs[0]])
+assertion(
+    "T15c: single path -> exit 2, needs at least 2",
+    rc == 2 and "at least 2" in out,
+    f"rc={rc}\n{out}",
+)
 
 # --- summary ---
 print()

@@ -1,0 +1,14 @@
+{
+  "name": "rate-skill",
+  "owner": { "name": "Adam Savage", "url": "https://github.com/Mrsavage92" },
+  "description": "Marketplace for the /rate skill - cold, independently-delegated 0-100 rating with a structural grader.",
+  "plugins": [
+    {
+      "name": "rate",
+      "source": "./",
+      "description": "Cold 0-100 rating skill built on one rule: the agent that produced the work does not get to score it.",
+      "category": "development",
+      "tags": ["rating", "review", "code-quality", "evaluation", "self-review"]
+    }
+  ]
+}

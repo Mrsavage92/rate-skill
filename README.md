@@ -78,16 +78,29 @@ The structural grader checks whether a report follows the contract. It does not 
 
 ## Install in Claude Code
 
+### Plugin install (recommended)
+
+```text
+/plugin marketplace add Mrsavage92/rate-skill
+/plugin install rate@rate-skill
+```
+
+Requires Claude Code 2.1.142+ (older versions may not surface `/plugin`; update
+via your install method and restart if the command isn't available). Validated
+against the current plugin/marketplace schema with `claude plugin validate . --strict`.
+
+### Manual install (fallback, e.g. locked-down/managed environments)
+
 Clone or download this repository, then copy the `rate/` directory into your Claude Code skills folder.
 
-### macOS or Linux
+#### macOS or Linux
 
 ```bash
 mkdir -p ~/.claude/skills/rate
 cp -R rate/. ~/.claude/skills/rate/
 ```
 
-### Windows PowerShell
+#### Windows PowerShell
 
 ```powershell
 $destination = Join-Path $HOME ".claude\skills\rate"
@@ -95,7 +108,7 @@ New-Item -ItemType Directory -Force $destination | Out-Null
 Copy-Item ".\rate\*" $destination -Recurse -Force
 ```
 
-### Verify the install
+#### Verify the manual install
 
 Run the cost guard against the skill's own `SKILL.md` from inside the installed
 `rate/` directory. This exercises the same Python execution path `/rate` uses,
@@ -112,7 +125,7 @@ Expected output:
 [cost_guard OK] file size OK (<N> LOC, threshold 2,000)
 ```
 
-Then run:
+### Then run
 
 ```text
 /rate <target>
@@ -133,6 +146,10 @@ The core skill is [rate/SKILL.md](rate/SKILL.md). It can work in another harness
 
 A harness without isolated delegation can use the supporting scripts, but it cannot claim a fully independent `/rate` run.
 
+## See it run
+
+[docs/example-rate-run.md](docs/example-rate-run.md) is a real, unedited transcript of `/rate` rating this repository's own `v0.1.0` tag - not a synthetic fixture. It shows the actual output shape, evidence style, and independence-disclosure block a real run produces.
+
 ## Requirements
 
 - Python 3.9 or newer
@@ -150,7 +167,7 @@ python rate/tests/run_tests.py
 Expected result:
 
 ```text
-Result: 17 passed, 0 failed
+Result: 21 passed, 0 failed
 ```
 
 The suite is self-contained and tests the deterministic scripts and report contract. It cannot verify the behaviour of a model host or prove that an isolated evaluator was actually launched.
@@ -160,3 +177,7 @@ The same suite runs automatically on Python 3.9 and 3.13 across Windows, macOS, 
 ## License
 
 [MIT](LICENSE). Use it, fork it, or adapt the calibration rules and target-specific assessment areas for your own workflow.
+
+## Project
+
+[PROVENANCE.md](PROVENANCE.md) discloses how this repo was built and verified. See [CONTRIBUTING.md](CONTRIBUTING.md) before sending a change, and [SECURITY.md](SECURITY.md) to report a vulnerability.

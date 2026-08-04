@@ -3,6 +3,31 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.1] - 2026-08-04
+
+Prompted by a second independent cold rating (78/100, fresh subagent, no
+prior context) run against the tagged `v0.1.0` state - see
+[docs/example-rate-run.md](docs/example-rate-run.md) for the full transcript.
+
+### Added
+
+- One-command plugin install: `.claude-plugin/marketplace.json` and
+  `.claude-plugin/plugin.json`, validated with
+  `claude plugin validate . --strict`. Manual copy-paste install kept as a
+  documented fallback for locked-down environments.
+- Test coverage for the two branches the second rating found untested:
+  `cost_guard.py`'s WARN path and all of `convergence_check.py` (4 new
+  assertions; 17 -> 21).
+- `docs/example-rate-run.md` - a real, unedited `/rate` transcript (not a
+  synthetic fixture) so a new user can see actual model behavior before
+  installing.
+- `SECURITY.md`, `CODE_OF_CONDUCT.md`, `.github/ISSUE_TEMPLATE/bug_report.md`.
+- `PROVENANCE.md` disclosing how this repo was built and independently
+  verified, since `/rate`'s own contract asks every target it rates to
+  disclose the same.
+- GitHub topics set for discoverability (`claude-code`, `claude-code-skill`,
+  `llm-evaluation`, `ai-agents`, `prompt-engineering`).
+
 ## [0.1.0] - 2026-08-04
 
 Initial public release.

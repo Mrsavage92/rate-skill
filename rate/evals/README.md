@@ -19,7 +19,10 @@ prove that a live model actually behaves this way when it runs `/rate`.
 Verifying real model behavior against `evals.json` requires running an actual
 `/rate` session against each prompt and grading the transcript it produces —
 a manual step, since it needs a live LLM call this repository's CI does not
-make. Run it yourself with:
+make. A real captured transcript (this skill rating its own repo) is
+committed at [../../docs/example-rate-run.md](../../docs/example-rate-run.md)
+if you want to see actual model behavior before running your own. Run a new
+one yourself with:
 
 ```bash
 python evals/grade_evals.py evals/evals.json --eval-id <id> --output <path-to-real-rating.md>
