@@ -3,7 +3,7 @@
 [![Tests](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml/badge.svg)](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml)
 [![Version](https://img.shields.io/github/v/tag/Mrsavage92/rate-skill?label=version&sort=semver)](https://github.com/Mrsavage92/rate-skill/tags)
 
-A cold 0-100 rating skill built on one rule: the agent that produced the work does not get to score it. A fresh, isolated evaluator does.
+A cold 0-100 rating skill built on one rule: the agent that produced the work does not get to score it. A fresh evaluator does.
 
 Point it at code, a landing page, a plan, a prompt, a document, a repository, a design, or another agent skill.
 
@@ -15,9 +15,9 @@ A valid run returns:
 
 1. **A measurable definition of 100/100**
 2. **A current score backed by evidence**
-3. **An ordered path to 100**, ranked by value gained versus AI execution time
+3. **An ordered path to 100**, ranked by value compared with execution time
 
-## The important difference
+## How it works
 
 The coordinating agent is not allowed to assign, adjust, average, soften, or rewrite the score.
 
@@ -25,54 +25,23 @@ The coordinating agent is not allowed to assign, adjust, average, soften, or rew
 
 - has not seen the conversation that produced the target
 - receives no previous scores or approval claims
-- uses the same model capability tier as the producer, or a stronger one, when the producer model is known
-- uses at least a Sonnet-equivalent reasoning model for non-AI targets
+- uses the same model capability tier as the producer, or a stronger one, when known
 - inspects the actual target before scoring
+- supports each area score with evidence
 
-If the environment cannot create that separation, `/rate` fails closed with:
+When that separation cannot be created, `/rate` returns:
 
 ```text
 NEEDS_HUMAN - independent evaluator unavailable
 ```
 
-It never labels a same-session self-review as independent.
-
-The structural grader checks whether a report follows the output contract. It cannot prove that the host genuinely launched an isolated evaluator or that the numeric judgment is correct. Rating quality still depends on inspection, evaluator capability, domain knowledge, and truthful runtime disclosure.
-
-## What each rating contains
-
-### 1. A measurable 100/100
-
-Not "feels polished" or "looks professional". The evaluator must define observable criteria, such as:
-
-- Lighthouse mobile score of at least 95
-- every route passes an accessibility scan
-- all public functions have tested error paths
-- every action in a plan has an owner and falsifiable completion check
-
-### 2. A score with a paper trail
-
-Every assessment area must cite something inspectable:
-
-- a file and line
-- observed behaviour
-- a test result
-- a measured value
-- a relevant external comparator
-
-Prior ratings and claims that the work is finished are not evidence.
-
-### 3. A path to 100
-
-Fixes are ordered by the value they recover compared with the time required. Each item includes a concrete change, affected location, and AI wall-clock estimate.
+The included grader checks whether a report follows the output contract. It cannot prove that a host genuinely launched an isolated evaluator or that the numeric judgment is correct.
 
 ## Install
 
-Choose either installation route below.
+### One command with the clean `/rate` name
 
-### One command and the clean `/rate` name
-
-This installs the standalone skill to `~/.claude/skills/rate` on Windows, macOS, or Linux:
+Installs the standalone skill to `~/.claude/skills/rate` on Windows, macOS, or Linux:
 
 ```bash
 npx -y github:Mrsavage92/rate-skill
@@ -84,32 +53,28 @@ Restart Claude Code, then run:
 /rate <target>
 ```
 
-Run the same command again to update the installation.
+Run the same command again to update.
 
-Verify it without changing anything:
+Verify the installation:
 
 ```bash
 npx -y github:Mrsavage92/rate-skill -- --verify
 ```
 
-Uninstall it:
+Uninstall:
 
 ```bash
 npx -y github:Mrsavage92/rate-skill -- --uninstall
 ```
 
-The installer requires Node.js 18 or newer. The installed skill still uses Python 3.9 or newer and has no pip dependencies.
+The installer requires Node.js 18 or newer. The installed skill uses Python 3.9 or newer and has no pip dependencies.
 
 ### Managed Claude Code plugin
-
-Use this route for Claude Code's plugin management and update commands:
 
 ```bash
 claude plugin marketplace add Mrsavage92/rate-skill
 claude plugin install rate@rate-skill
 ```
-
-The same commands can be run inside Claude Code with a leading `/`.
 
 Plugin skills are namespaced, so the explicit command is:
 
@@ -126,16 +91,16 @@ claude plugin update rate@rate-skill
 
 ### Manual fallback
 
-Clone or download this repository, then copy the `rate/` directory into your Claude Code skills folder.
+Clone or download the repository, then copy the `rate/` directory into your Claude Code skills folder.
 
-#### macOS or Linux
+macOS or Linux:
 
 ```bash
 mkdir -p ~/.claude/skills/rate
 cp -R rate/. ~/.claude/skills/rate/
 ```
 
-#### Windows PowerShell
+Windows PowerShell:
 
 ```powershell
 $destination = Join-Path $HOME ".claude\skills\rate"
@@ -143,60 +108,33 @@ New-Item -ItemType Directory -Force $destination | Out-Null
 Copy-Item ".\rate\*" $destination -Recurse -Force
 ```
 
-#### Verify the manual install
+## Enforcement tools
 
-Run the cost guard against the skill's own `SKILL.md` from inside the installed
-`rate/` directory. This exercises the same Python execution path `/rate` uses,
-so a passing result means the install is actually wired up, not just copied:
+The repository includes:
 
-```bash
-cd ~/.claude/skills/rate   # or the destination you copied to
-python scripts/cost_guard.py SKILL.md
-```
-
-Expected output:
-
-```text
-[cost_guard OK] file size OK (<N> LOC, threshold 2,000)
-```
-
-## Enforcement layer
-
-The repository includes pure Python standard-library tooling:
-
-- **Structural grader** - checks required sections, banned phrases, priming acknowledgement, P0 time estimates, and evidence for high scores
+- **Structural grader** - checks required sections, banned phrases, priming acknowledgement, time estimates, and evidence for high scores
 - **Cost guard** - warns when a target is too large for one meaningful pass
 - **Convergence checker** - compares multiple independent ratings and flags high variance
 - **Optional hooks** - can block a response that breaks the output contract
-- **Regression tests and evals** - protect the deterministic enforcement layer as the skill changes
+- **Regression tests and evals** - protect the deterministic checks as the skill changes
 
-**None of the three install paths above wire up automatic grader enforcement by themselves.** They give you the skill and the grader script, but `check_rating.py` only runs automatically if you also wire the `Stop` hook described in [rate/hooks/README.md](rate/hooks/README.md). Without it, the coordinating agent has to remember to run the grader manually per [SKILL.md's structural-grader step](rate/SKILL.md#structural-grader) - the same honor-system gap this skill exists to close everywhere else. Wire the hook if you want that closed here too.
+None of the installation methods automatically wire the optional Stop hook. Follow [rate/hooks/README.md](rate/hooks/README.md) to enable automatic grader enforcement. Without the hook, the coordinating agent must run the grader manually as instructed by [rate/SKILL.md](rate/SKILL.md).
 
-For optional post-response enforcement, see [rate/hooks/README.md](rate/hooks/README.md).
+## Other AI agent platforms
 
-## Other agent harnesses
+The core workflow is in [rate/SKILL.md](rate/SKILL.md). It can be adapted to other agent platforms when they provide:
 
-The core skill is [rate/SKILL.md](rate/SKILL.md). It can work in another harness when that environment provides:
-
+- reusable instructions or skills
 - file or content inspection
 - Python execution
-- a fresh isolated subagent or task call
-- a model at least equivalent to Claude Sonnet for the evaluator
+- a fresh isolated agent or task call
+- an evaluator model capable of making the required judgment
 
-A harness without isolated delegation can use the supporting scripts, but it cannot claim a fully independent `/rate` run.
+A platform without isolated delegation can use the supporting scripts, but it cannot claim a fully independent rating.
 
-## See it run
+## Example
 
-[docs/example-rate-run.md](docs/example-rate-run.md) is a real, unedited transcript of `/rate` rating this repository's own `v0.1.0` tag. It shows the output shape, evidence style, and independence-disclosure block a real run produces.
-
-## Requirements
-
-- Python 3.9 or newer
-- no pip dependencies
-- an agent with file-read and Python execution access
-- isolated subagent or task support for independent ratings
-- Sonnet-equivalent or stronger evaluator model
-- Node.js 18 or newer only when using the one-command installer
+[docs/example-rate-run.md](docs/example-rate-run.md) shows a real `/rate` output, including its evidence table and path to 100.
 
 ## Run the tests
 
@@ -218,14 +156,10 @@ Installer suite:
 node tests/test-installer.js
 ```
 
-GitHub Actions runs the Python suite across Python 3.9 and 3.13, plus the installer suite across Node 18 and 22, on Windows, macOS, and Linux.
-
-The deterministic tests cannot verify the behaviour of a model host or prove that an isolated evaluator was actually launched.
+GitHub Actions runs the Python and installer suites across Windows, macOS, and Linux.
 
 ## License
 
-[MIT](LICENSE). Use it, fork it, or adapt the calibration rules and target-specific assessment areas for your own workflow.
+[MIT](LICENSE). Use it, fork it, or adapt it for your own workflow.
 
-## Project
-
-[PROVENANCE.md](PROVENANCE.md) discloses how this repo was built and verified. See [CONTRIBUTING.md](CONTRIBUTING.md) before sending a change, and [SECURITY.md](SECURITY.md) to report a vulnerability.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports are covered in [SECURITY.md](SECURITY.md).
