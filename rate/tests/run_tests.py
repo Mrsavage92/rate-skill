@@ -26,6 +26,7 @@ Test coverage:
     T15a convergence_check.py converges (exit 0) on close bundled fixture scores
     T15b convergence_check.py flags low convergence (exit 1) under a tight threshold
     T15c convergence_check.py exits 2 on fewer than 2 input paths
+    T16 90+ evidence gate accepts code/repo-shaped evidence ("21/21 tests pass", "CI green")
 
 All fixtures are bundled under tests/fixtures/ — this suite has no dependency
 on anything outside this repository and runs identically wherever it's cloned.
@@ -507,6 +508,67 @@ assertion(
     rc == 2 and "at least 2" in out,
     f"rc={rc}\n{out}",
 )
+
+# --- T16: 90+ evidence gate accepts code/repo-shaped evidence ---
+print("[T16] 90+ evidence gate accepts test-pass ratios and CI-green confirmation")
+code_evidence = """# check_rating.py - cold rating: **92/100**
+
+Verified live: 21/21 tests pass in the regression suite, and CI is green across the full matrix.
+
+---
+
+## What 100/100 looks like
+
+1. one
+2. two
+3. three
+4. four
+5. five
+6. six
+7. seven
+
+---
+
+## Area-by-area
+
+| Area | Score | Evidence |
+|---|---|---|
+| A | **92** | 21/21 tests pass, confirmed by running the suite directly |
+| B | **92** | CI is confirmed green across the declared matrix |
+| C | **90** | foo.md:3 |
+| D | **91** | foo.md:4 |
+| E | **93** | foo.md:5 |
+
+---
+
+## Path to 100
+
+### P0 - Required (92 -> ~96)
+
+1. **Polish.** Specific change. ~30 min. [foo.md](foo.md).
+
+### P1 - Nice-to-have (96 -> ~100)
+
+2. **Final polish.** ~1 hr. [foo.md](foo.md).
+
+---
+
+## Verdict
+
+92/100. T16 fixture: code/repo-shaped evidence (test-pass ratio, CI-green) must satisfy the high-score-evidence gate.
+"""
+with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as tf:
+    tf.write(code_evidence)
+    code_evidence_path = tf.name
+
+rc, out = run([str(GRADER), code_evidence_path])
+ev_line = next((ln for ln in out.splitlines() if "high-score-evidence" in ln), "")
+assertion(
+    "T16: '21/21 tests pass' + 'CI green' satisfies the evidence gate",
+    "[PASS]" in ev_line and "high-score-evidence" in ev_line,
+    out,
+)
+Path(code_evidence_path).unlink(missing_ok=True)
 
 # --- summary ---
 print()

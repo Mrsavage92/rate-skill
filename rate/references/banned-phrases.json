@@ -79,7 +79,7 @@
     ]
   },
   "evidence_markers_for_high_scores": {
-    "$comment": "If output score >=90, the body MUST contain at least one of these, AND it must appear in the evidence region (before '## Path to 100'), not in the forward-looking ladder/verdict. Patched 2026-06-01: bare '(?i)convergence' removed — it is the skill's own method name and appeared in unrelated prose, unlocking a 96 on a stray token. Replaced with a pattern requiring a numeric convergence measurement.",
+    "$comment": "If output score >=90, the body MUST contain at least one of these, AND it must appear in the evidence region (before '## Path to 100'), not in the forward-looking ladder/verdict. Patched 2026-06-01: bare '(?i)convergence' removed — it is the skill's own method name and appeared in unrelated prose, unlocking a 96 on a stray token. Replaced with a pattern requiring a numeric convergence measurement. Patched 2026-08-04: the original list was entirely web-performance-shaped (Lighthouse/LCP/INP/CLS/ms/kb/axe), so a legitimately well-evidenced 90+ rating of a code repo, CLI tool, or skill had no matching pattern — found by an independent /rate run against this repo's own v0.1.1 tag. Added code/repo-shaped markers: test-pass ratios, CI-green confirmation, and gh-command-output citation.",
     "regex_patterns": [
       "(?i)lighthouse\\s+\\d{2,3}",
       "(?i)\\bLCP\\s*[<>=]?\\s*\\d",
@@ -92,7 +92,11 @@
       "(?i)beats\\s+(most|the)",
       "(?i)stddev\\s*<\\s*\\d",
       "(?i)convergence\\s+\\w*\\s*(stddev|=|<|:)?\\s*\\d",
-      "(?i)benchmarked against"
+      "(?i)benchmarked against",
+      "(?i)\\d+/\\d+\\s+(tests?|assertions?|checks?)\\s+(pass|passed|passing)",
+      "(?i)\\d+/\\d+\\s+(runs?|jobs?)\\s+(green|passing|success(ful)?)",
+      "(?i)\\bCI\\s+(is\\s+)?(confirmed\\s+)?green\\b",
+      "(?i)\\bgh\\s+(run|repo|api)\\s+\\w+\\b.{0,40}(confirm|show|return|verif)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "rate",
   "description": "Cold, independently-delegated 0-100 rating skill. Defines what 100/100 looks like, scores with evidence, and ranks the path to get there. The coordinating agent may not score its own work.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": { "name": "Adam Savage" },
   "license": "MIT",
   "skills": ["./rate"]

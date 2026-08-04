@@ -3,6 +3,30 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.2] - 2026-08-04
+
+Prompted by a third independent cold rating (81/100, fresh subagent, no
+prior context) run against the tagged `v0.1.1` state.
+
+### Fixed
+
+- The 90+ evidence gate (`evidence_markers_for_high_scores` in
+  `rate/references/banned-phrases.json`) was entirely web-performance-shaped
+  (Lighthouse/LCP/INP/CLS/ms/kb/axe) with no pattern matching code/repo-shaped
+  evidence like test-pass ratios or CI-green confirmation — meaning a
+  legitimately well-evidenced 90+ rating of a code repo or skill (this one
+  included) could not structurally pass the tool's own contract. Added
+  code/repo-shaped markers and a regression test (T16; 21 -> 22 assertions).
+- README's manual-install path implied grader enforcement happens
+  automatically. It doesn't, unless the `Stop` hook is also wired - the exact
+  honor-system gap this skill exists to close elsewhere. Now disclosed
+  explicitly in the install section.
+
+### Added
+
+- `.github/PULL_REQUEST_TEMPLATE.md` restating the pre-PR checklist from
+  `CONTRIBUTING.md` in the PR UI itself.
+
 ## [0.1.1] - 2026-08-04
 
 Prompted by a second independent cold rating (78/100, fresh subagent, no

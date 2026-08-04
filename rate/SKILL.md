@@ -281,5 +281,5 @@ This skill should itself be rateable by `/rate`, but never by the same evaluator
 - [evals/golden/](evals/golden/) - synthetic structural fixtures that keep the eval-assertion logic under CI (see [evals/README.md](evals/README.md) for what this does and does not prove)
 - [references/banned-phrases.json](references/banned-phrases.json) - source of truth for banned and priming patterns
 - [references/self-rating-disclosure.md](references/self-rating-disclosure.md) - contamination disclosure for self-rates
-- [tests/run_tests.py](tests/run_tests.py) - cross-platform regression suite with 21 assertions, including direct coverage of both hooks, the cost guard's warn branch, and the convergence checker
+- [tests/run_tests.py](tests/run_tests.py) - cross-platform regression suite with 22 assertions, including direct coverage of both hooks, the cost guard's warn branch, the convergence checker, and the high-score evidence gate's code/repo-shaped patterns
 - [hooks/](hooks/) - optional automatic enforcement hooks

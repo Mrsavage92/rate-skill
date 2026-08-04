@@ -125,6 +125,15 @@ Expected output:
 [cost_guard OK] file size OK (<N> LOC, threshold 2,000)
 ```
 
+**Neither install path wires up automatic grader enforcement by itself.** Both
+the plugin install and the manual copy above give you the skill and the
+grader script, but `check_rating.py` only runs automatically if you also wire
+the `Stop` hook described in [rate/hooks/README.md](rate/hooks/README.md).
+Without it, the coordinating agent has to remember to run the grader manually
+per [SKILL.md's structural-grader step](rate/SKILL.md#structural-grader) — the
+same honor-system gap this skill exists to close everywhere else. Wire the
+hook if you want that closed here too.
+
 ### Then run
 
 ```text
@@ -167,7 +176,7 @@ python rate/tests/run_tests.py
 Expected result:
 
 ```text
-Result: 21 passed, 0 failed
+Result: 22 passed, 0 failed
 ```
 
 The suite is self-contained and tests the deterministic scripts and report contract. It cannot verify the behaviour of a model host or prove that an isolated evaluator was actually launched.
