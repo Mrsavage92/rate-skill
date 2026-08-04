@@ -3,6 +3,27 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.2] - 2026-08-04
+
+### Added
+
+- A genuine one-command cross-platform installer:
+  `npx -y github:Mrsavage92/rate-skill`.
+- Safe install, update, verification, and uninstall flows for the standalone
+  `~/.claude/skills/rate` installation.
+- Node installer regression tests across Windows, macOS, and Linux on Node 18
+  and Node 22.
+- npm package metadata so the GitHub repository can be executed directly by
+  `npx` without publishing a separate package.
+
+### Changed
+
+- Bumped the managed Claude Code plugin metadata to `0.1.2`.
+- Clarified the difference between the standalone `/rate` command and the
+  marketplace plugin's namespaced `/rate:rate` command.
+- Aligned marketplace and plugin manifests with the published Claude Code
+  schemas.
+
 ## [0.1.1] - 2026-08-04
 
 Prompted by a second independent cold rating (78/100, fresh subagent, no
@@ -11,7 +32,7 @@ prior context) run against the tagged `v0.1.0` state - see
 
 ### Added
 
-- One-command plugin install: `.claude-plugin/marketplace.json` and
+- Managed plugin installation: `.claude-plugin/marketplace.json` and
   `.claude-plugin/plugin.json`, validated with
   `claude plugin validate . --strict`. Manual copy-paste install kept as a
   documented fallback for locked-down environments.
@@ -52,7 +73,7 @@ Initial public release.
 - Optional cross-platform Python hooks (`hooks/`) for automatic grader
   enforcement in Claude Code or any harness with equivalent hook points.
 - Cross-platform regression suite (`tests/run_tests.py`, 17 assertions),
-  fully self-contained — no fixtures or paths outside this repository.
+  fully self-contained - no fixtures or paths outside this repository.
 - Eval suite (`evals/`) with synthetic golden fixtures keeping the
   assertion-checking logic under CI regression coverage.
 - GitHub Actions matrix: Windows/macOS/Linux x Python 3.9/3.13.
@@ -64,4 +85,4 @@ Initial public release.
   grader's output checks, not by anything the tooling can use to verify a
   coordinating agent actually launched an isolated evaluator.
 - The eval suite's golden fixtures are synthetic, not captured live-model
-  transcripts — they validate the grading logic, not real model behavior.
+  transcripts - they validate the grading logic, not real model behavior.
