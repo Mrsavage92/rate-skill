@@ -1,16 +1,24 @@
 # /rate
 
+[![Tests](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml/badge.svg)](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml)
+
 A cold 0-100 rating skill that does not let the agent that produced the work mark its own homework.
 
-Point it at code, a landing page, a plan, a prompt, a document, a repository, a design, or another agent skill. A valid run launches a fresh evaluator and returns:
+Point it at code, a landing page, a plan, a prompt, a document, a repository, a design, or another agent skill.
 
-1. **A concrete definition of 100/100** using observable criteria.
-2. **A current score with evidence** for every assessment area.
-3. **An ordered path to 100** ranked by value gained versus AI execution time.
+```text
+/rate <target>
+```
+
+A valid run returns:
+
+1. **A measurable definition of 100/100**
+2. **A current score backed by evidence**
+3. **An ordered path to 100**, ranked by value gained versus AI execution time
 
 ## The important difference
 
-The coordinating agent is not allowed to assign, adjust, or soften the score.
+The coordinating agent is not allowed to assign, adjust, average, soften, or rewrite the score.
 
 `/rate` requires a fresh evaluator that:
 
@@ -32,7 +40,7 @@ It never labels a same-session self-review as independent.
 
 ### 1. A measurable 100/100
 
-Not "feels polished" or "looks professional". The evaluator must define observable criteria such as:
+Not "feels polished" or "looks professional". The evaluator must define observable criteria, such as:
 
 - Lighthouse mobile score of at least 95
 - every route passes an accessibility scan
@@ -44,7 +52,7 @@ Not "feels polished" or "looks professional". The evaluator must define observab
 Every assessment area must cite something inspectable:
 
 - a file and line
-- observed behavior
+- observed behaviour
 - a test result
 - a measured value
 - a relevant external comparator
@@ -53,7 +61,7 @@ Prior ratings and claims that the work is finished are not evidence.
 
 ### 3. A path to 100
 
-Fixes are ordered by the amount of score and value they recover for the time required. Each item includes a concrete change, affected location, and AI wall-clock estimate.
+Fixes are ordered by the value they recover compared with the time required. Each item includes a concrete change, affected location, and AI wall-clock estimate.
 
 ## Enforcement layer
 
@@ -62,17 +70,28 @@ The repository includes pure Python standard-library tooling:
 - **Structural grader** - checks required sections, banned phrases, priming acknowledgement, P0 time estimates, and evidence for high scores
 - **Cost guard** - warns when a target is too large for one meaningful pass
 - **Convergence checker** - compares multiple independent ratings and flags high variance
-- **Optional hooks** - automatically block a response that breaks the output contract
-- **Regression tests and evals** - protect the contract as the skill changes
+- **Optional hooks** - can block a response that breaks the output contract
+- **Regression tests and evals** - protect the deterministic enforcement layer as the skill changes
 
-The structural grader checks whether a report follows the contract. It does not prove that the numeric judgment is correct. Rating quality still depends on inspection, evaluator capability, and domain knowledge.
+The structural grader checks whether a report follows the contract. It does not prove that the numeric judgment is correct or that the host genuinely launched an isolated evaluator. Rating quality still depends on inspection, evaluator capability, domain knowledge, and truthful runtime disclosure.
 
 ## Install in Claude Code
 
-Copy the `rate/` directory into your skills folder:
+Clone or download this repository, then copy the `rate/` directory into your Claude Code skills folder.
+
+### macOS or Linux
 
 ```bash
-cp -r rate ~/.claude/skills/rate
+mkdir -p ~/.claude/skills/rate
+cp -R rate/. ~/.claude/skills/rate/
+```
+
+### Windows PowerShell
+
+```powershell
+$destination = Join-Path $HOME ".claude\skills\rate"
+New-Item -ItemType Directory -Force $destination | Out-Null
+Copy-Item ".\rate\*" $destination -Recurse -Force
 ```
 
 Then run:
@@ -83,7 +102,7 @@ Then run:
 
 The target can be a file path, directory, URL, or inline content.
 
-For automatic post-response enforcement, see [rate/hooks/README.md](rate/hooks/README.md).
+For optional post-response enforcement, see [rate/hooks/README.md](rate/hooks/README.md).
 
 ## Other agent harnesses
 
@@ -104,11 +123,10 @@ A harness without isolated delegation can use the supporting scripts, but it can
 - isolated subagent or task support for independent ratings
 - Sonnet-equivalent or stronger evaluator model
 
-## Verify the repository
+## Run the regression tests
 
 ```bash
-cd rate
-python tests/run_tests.py
+python rate/tests/run_tests.py
 ```
 
 Expected result:
@@ -117,8 +135,10 @@ Expected result:
 Result: 12 passed, 0 failed
 ```
 
-The suite is self-contained and uses no fixtures outside this repository.
+The suite is self-contained and tests the deterministic scripts and report contract. It cannot verify the behaviour of a model host or prove that an isolated evaluator was actually launched.
+
+The same suite runs automatically on Python 3.9 and 3.13 across Windows, macOS, and Linux through GitHub Actions.
 
 ## License
 
-MIT. Use it, fork it, or adapt the calibration rules and target-specific assessment areas for your own workflow.
+[MIT](LICENSE). Use it, fork it, or adapt the calibration rules and target-specific assessment areas for your own workflow.
