@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+  python:
+    name: Python / ${{ matrix.os }} / ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -33,3 +33,27 @@ jobs:
 
       - name: Run eval-assertion regression against golden fixtures
         run: python rate/evals/grade_evals.py rate/evals/evals.json --all rate/evals/golden
+
+  installer:
+    name: Installer / ${{ matrix.os }} / Node ${{ matrix.node-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: ['18', '22']
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Test install update verify and uninstall
+        run: node tests/test-installer.js
+
+      - name: Verify the GitHub npx package contents
+        run: npm pack --dry-run
