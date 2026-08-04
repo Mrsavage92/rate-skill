@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Cross-platform regression test harness for /rate.
 
-Mirrors run_tests.sh but runs everywhere — PowerShell on Windows, bash on Unix —
-without requiring a POSIX shell. Each test prints a single line; the script exits
-with the number of failures (0 = all pass).
+The sole canonical test suite — runs everywhere (Windows, macOS, Linux) without
+requiring a POSIX shell or any interpreter beyond Python itself. Each test
+prints a single line; the script exits with the number of failures (0 = all
+pass).
 
 Test coverage:
     T1  Benign prompt with `100/100` does NOT trigger spurious priming flag (P0 #1)
@@ -16,6 +17,11 @@ Test coverage:
     T6  Bulleted P0 items are detected by check_p0_has_time_estimates
     T7  cost_guard.py on a missing target exits 2 / HALT (not a silent "OK")
     T8  90+ evidence gate is NOT satisfied by a marker token in the Verdict prose
+    T9  check_rating.py auto-loads .last-prompt.txt when --prompt is omitted
+    T10 --no-prompt-file disables the .last-prompt.txt fallback even if it exists
+    T11 hooks/rate_capture_prompt.py writes the prompt from stdin JSON
+    T12 hooks/rate_grade_gate.py BLOCKS a structurally-failing rating
+    T13 hooks/rate_grade_gate.py allows a structurally-passing rating silently
 
 All fixtures are bundled under tests/fixtures/ — this suite has no dependency
 on anything outside this repository and runs identically wherever it's cloned.
@@ -27,6 +33,7 @@ Exit code = number of failed tests.
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -40,12 +47,35 @@ COST_GUARD = SKILL_ROOT / "scripts" / "cost_guard.py"
 GRADE_EVALS = SKILL_ROOT / "evals" / "grade_evals.py"
 EVALS_JSON = SKILL_ROOT / "evals" / "evals.json"
 FIXTURES = SKILL_ROOT / "tests" / "fixtures"
+HOOKS = SKILL_ROOT / "hooks"
+CAPTURE_PROMPT_HOOK = HOOKS / "rate_capture_prompt.py"
+GRADE_GATE_HOOK = HOOKS / "rate_grade_gate.py"
+PROMPT_FILE = SKILL_ROOT / ".last-prompt.txt"
+
+# A stray .last-prompt.txt from a prior manual run (it's gitignored, so a fresh
+# clone never has one) would make the fallback in T9/T10 non-deterministic and
+# could leak into T1-T8's no-prompt calls. Clear it before this run and let
+# each test that needs one write and clean up its own.
+PROMPT_FILE.unlink(missing_ok=True)
 
 
 def run(cmd: list[str]) -> tuple[int, str]:
     """Run a python subprocess and capture combined stdout/stderr."""
     proc = subprocess.run(
         [sys.executable, *cmd],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+
+
+def run_with_stdin(cmd: list[str], stdin_text: str) -> tuple[int, str]:
+    """Run a python subprocess feeding stdin_text on stdin, capture combined stdout/stderr."""
+    proc = subprocess.run(
+        [sys.executable, *cmd],
+        input=stdin_text,
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -344,6 +374,87 @@ assertion(
     out,
 )
 Path(bypass_path).unlink(missing_ok=True)
+
+# --- T9: check_rating.py auto-loads .last-prompt.txt when --prompt is omitted ---
+print("[T9] check_rating.py falls back to .last-prompt.txt when --prompt is omitted")
+priming_prompt = (FIXTURES / "priming_attempted_prompt.txt").read_text(encoding="utf-8")
+PROMPT_FILE.write_text(priming_prompt, encoding="utf-8")
+rc, out = run([str(GRADER), str(FIXTURES / "minimal_rating.md")])
+line = next((ln for ln in out.splitlines() if "priming-acknowledged" in ln), "")
+assertion(
+    "T9: priming file auto-loaded -> priming-acknowledged FAILs without --prompt",
+    "[FAIL]" in line and "priming-acknowledged" in line and "auto-loaded" in out,
+    out,
+)
+PROMPT_FILE.unlink(missing_ok=True)
+
+# --- T10: --no-prompt-file disables the fallback ---
+print("[T10] --no-prompt-file disables the .last-prompt.txt fallback")
+PROMPT_FILE.write_text(priming_prompt, encoding="utf-8")
+rc, out = run([str(GRADER), str(FIXTURES / "minimal_rating.md"), "--no-prompt-file"])
+line = next((ln for ln in out.splitlines() if "priming-acknowledged" in ln), "")
+assertion(
+    "T10: --no-prompt-file -> priming check skipped despite file present",
+    "[PASS]" in line and "skipped (no --prompt provided)" in out,
+    out,
+)
+PROMPT_FILE.unlink(missing_ok=True)
+
+# --- T11: rate_capture_prompt.py writes the prompt from stdin JSON ---
+print("[T11] rate_capture_prompt.py writes .last-prompt.txt from stdin JSON")
+PROMPT_FILE.unlink(missing_ok=True)
+stdin_payload = json.dumps({"prompt": "T11 synthetic prompt, rate this out of 100"})
+rc, out = run_with_stdin([str(CAPTURE_PROMPT_HOOK)], stdin_payload)
+written = PROMPT_FILE.read_text(encoding="utf-8") if PROMPT_FILE.exists() else None
+assertion(
+    "T11: hook writes exact prompt text, no stdout",
+    rc == 0 and written == "T11 synthetic prompt, rate this out of 100" and out.strip() == "",
+    f"rc={rc} written={written!r} stdout/stderr={out!r}",
+)
+PROMPT_FILE.unlink(missing_ok=True)
+
+# --- T12: rate_grade_gate.py BLOCKS a structurally-failing rating ---
+print("[T12] rate_grade_gate.py blocks a structurally-failing rating")
+bad_rating_text = "# Something — cold rating: **50/100**\n\nNo other required sections at all."
+with tempfile.NamedTemporaryFile(
+    mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+) as tf:
+    transcript_line = json.dumps(
+        {"message": {"role": "assistant", "content": [{"type": "text", "text": bad_rating_text}]}}
+    )
+    tf.write(transcript_line + "\n")
+    transcript_path = tf.name
+rc, out = run_with_stdin(
+    [str(GRADE_GATE_HOOK)], json.dumps({"transcript_path": transcript_path})
+)
+assertion(
+    "T12: malformed /rate-shaped output -> decision=block",
+    rc == 0 and '"decision": "block"' in out,
+    f"rc={rc}\n{out}",
+)
+Path(transcript_path).unlink(missing_ok=True)
+
+# --- T13: rate_grade_gate.py allows a structurally-passing rating silently ---
+print("[T13] rate_grade_gate.py allows a structurally-passing rating silently")
+good_rating_text = (FIXTURES / "minimal_rating.md").read_text(encoding="utf-8")
+with tempfile.NamedTemporaryFile(
+    mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+) as tf:
+    transcript_line = json.dumps(
+        {"message": {"role": "assistant", "content": [{"type": "text", "text": good_rating_text}]}}
+    )
+    tf.write(transcript_line + "\n")
+    transcript_path = tf.name
+rc, out = run_with_stdin(
+    [str(GRADE_GATE_HOOK)], json.dumps({"transcript_path": transcript_path})
+)
+assertion(
+    "T13: well-formed /rate output -> silent allow, no block decision",
+    rc == 0 and '"decision"' not in out and out.strip() == "",
+    f"rc={rc}\n{out}",
+)
+Path(transcript_path).unlink(missing_ok=True)
+PROMPT_FILE.unlink(missing_ok=True)  # in case T12/T13 or an earlier failure left one behind
 
 # --- summary ---
 print()

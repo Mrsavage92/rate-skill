@@ -234,6 +234,8 @@ python scripts/check_rating.py <path-to-rating.md> --prompt "<raw-user-prompt>"
 
 The grader checks structure, banned language, priming acknowledgement, P0 time estimates, and the evidence requirement for high scores. It does **not** determine whether the evaluator's judgment is correct. Score quality still depends on inspection, model capability, and domain knowledge.
 
+If `--prompt` is omitted, the priming check falls back to `.last-prompt.txt` next to this file (written by `hooks/rate_capture_prompt.py`) when that file is present, so the check cannot be silently skipped just by forgetting the flag. Pass `--no-prompt-file` to disable that fallback explicitly.
+
 Optional hooks under [hooks/](hooks/) can run the grader automatically in supported environments.
 
 ## Convergence checks
@@ -276,7 +278,8 @@ This skill should itself be rateable by `/rate`, but never by the same evaluator
 - [scripts/convergence_check.py](scripts/convergence_check.py) - comparison of independent rating runs
 - [scripts/_rate_lib.py](scripts/_rate_lib.py) - shared parsing and phrase-matching helpers
 - [evals/grade_evals.py](evals/grade_evals.py) - eval assertion runner
+- [evals/golden/](evals/golden/) - synthetic structural fixtures that keep the eval-assertion logic under CI (see [evals/README.md](evals/README.md) for what this does and does not prove)
 - [references/banned-phrases.json](references/banned-phrases.json) - source of truth for banned and priming patterns
 - [references/self-rating-disclosure.md](references/self-rating-disclosure.md) - contamination disclosure for self-rates
-- [tests/run_tests.py](tests/run_tests.py) - cross-platform regression suite with 12 assertions
+- [tests/run_tests.py](tests/run_tests.py) - cross-platform regression suite with 17 assertions, including direct coverage of both hooks
 - [hooks/](hooks/) - optional automatic enforcement hooks

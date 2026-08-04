@@ -1,8 +1,9 @@
 # /rate
 
 [![Tests](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml/badge.svg)](https://github.com/Mrsavage92/rate-skill/actions/workflows/tests.yml)
+[![Version](https://img.shields.io/github/v/tag/Mrsavage92/rate-skill?label=version&sort=semver)](https://github.com/Mrsavage92/rate-skill/tags)
 
-A cold 0-100 rating skill that does not let the agent that produced the work mark its own homework.
+A cold 0-100 rating skill built on one rule: the agent that produced the work does not get to score it — a fresh, isolated evaluator does. That separation is required by an explicit contract and checked by a structural grader. Neither can force a coordinating agent to actually delegate — see [The important difference](#the-important-difference) for exactly what is and isn't guaranteed.
 
 Point it at code, a landing page, a plan, a prompt, a document, a repository, a design, or another agent skill.
 
@@ -94,6 +95,23 @@ New-Item -ItemType Directory -Force $destination | Out-Null
 Copy-Item ".\rate\*" $destination -Recurse -Force
 ```
 
+### Verify the install
+
+Run the cost guard against the skill's own `SKILL.md` from inside the installed
+`rate/` directory. This exercises the same Python execution path `/rate` uses,
+so a passing result means the install is actually wired up, not just copied:
+
+```bash
+cd ~/.claude/skills/rate   # or the destination you copied to
+python scripts/cost_guard.py SKILL.md
+```
+
+Expected output:
+
+```text
+[cost_guard OK] file size OK (<N> LOC, threshold 2,000)
+```
+
 Then run:
 
 ```text
@@ -132,7 +150,7 @@ python rate/tests/run_tests.py
 Expected result:
 
 ```text
-Result: 12 passed, 0 failed
+Result: 17 passed, 0 failed
 ```
 
 The suite is self-contained and tests the deterministic scripts and report contract. It cannot verify the behaviour of a model host or prove that an isolated evaluator was actually launched.

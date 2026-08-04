@@ -30,3 +30,6 @@ jobs:
 
       - name: Run regression tests
         run: python rate/tests/run_tests.py
+
+      - name: Run eval-assertion regression against golden fixtures
+        run: python rate/evals/grade_evals.py rate/evals/evals.json --all rate/evals/golden

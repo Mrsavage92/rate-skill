@@ -14,6 +14,11 @@ The grader validates the contract /rate's SKILL.md commits to producing.
 It is not a quality grader (the score's correctness is a judgment call) —
 it enforces shape, banned phrases, and the 90+-needs-evidence rule.
 
+If --prompt is omitted, the priming-acknowledgement check falls back to
+<skill-dir>/.last-prompt.txt (written by hooks/rate_capture_prompt.py) when
+that file exists, so a coordinating agent can't silently skip the check just
+by forgetting the flag. Pass --no-prompt-file to disable that fallback.
+
 Cross-platform: pure stdlib, no shell-outs, UTF-8 explicit on every write.
 """
 
@@ -36,6 +41,11 @@ from _rate_lib import (  # noqa: E402
     iter_phrase_matches,
     load_banned as _load_banned,
 )
+
+# Written by hooks/rate_capture_prompt.py next to SKILL.md. Used as a fallback
+# source for --prompt so the priming check can't be silently skipped by a
+# coordinator that just forgets the flag.
+DEFAULT_PROMPT_FILE = Path(__file__).resolve().parent.parent / ".last-prompt.txt"
 
 
 def load_banned() -> dict:
@@ -289,7 +299,13 @@ def main() -> int:
     parser.add_argument(
         "--prompt",
         default=None,
-        help="Optional: the user prompt that produced this rating (enables priming-acknowledgement check)",
+        help="Optional: the user prompt that produced this rating (enables priming-acknowledgement "
+        "check). Falls back to .last-prompt.txt next to SKILL.md if omitted.",
+    )
+    parser.add_argument(
+        "--no-prompt-file",
+        action="store_true",
+        help="Do not fall back to .last-prompt.txt even if it exists.",
     )
     parser.add_argument(
         "--json",
@@ -304,7 +320,17 @@ def main() -> int:
         return 2
     text = path.read_text(encoding="utf-8")
 
-    results, failed = run_all_checks(text, args.prompt)
+    prompt = args.prompt
+    prompt_source = "explicit --prompt" if prompt else None
+    if prompt is None and not args.no_prompt_file and DEFAULT_PROMPT_FILE.exists():
+        try:
+            prompt = DEFAULT_PROMPT_FILE.read_text(encoding="utf-8") or None
+            if prompt:
+                prompt_source = f"auto-loaded from {DEFAULT_PROMPT_FILE.name}"
+        except OSError:
+            prompt = None
+
+    results, failed = run_all_checks(text, prompt)
 
     if args.json:
         out = {
@@ -312,6 +338,7 @@ def main() -> int:
             "passed": failed == 0,
             "failed_count": failed,
             "total_count": len(results),
+            "prompt_source": prompt_source,
             "checks": [
                 {"name": r.name, "passed": r.passed, "detail": r.detail}
                 for r in results
@@ -322,6 +349,8 @@ def main() -> int:
         for r in results:
             print(r.fmt())
         print()
+        if prompt_source:
+            print(f"[grader] priming check used prompt from: {prompt_source}")
         print(f"Result: {len(results) - failed}/{len(results)} checks passed.")
 
     return 0 if failed == 0 else 1
